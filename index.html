@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+
+    <!--
+      SENTINEL 1 and 2. Komari string-replaces the exact <title> element and the
+      exact description text below with the operator's configured values.
+      Both must stay byte-for-byte identical. Do not template them, do not let a
+      plugin rewrite them, do not reformat the attribute order.
+    -->
+    <title>Komari Monitor</title>
+    <meta name="description" content="A simple server monitor tool." />
+
+    <script>
+      // Apply the stored appearance before first paint to avoid a light flash on
+      // dark-mode loads. Shares the `appearance` key with the default theme.
+      ;(function () {
+        try {
+          var pref = localStorage.getItem('appearance') || 'system'
+          var dark =
+            pref === 'dark' ||
+            (pref === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+        } catch (e) {
+          /* private mode / storage disabled: fall through to light */
+        }
+      })()
+    </script>
+    <!--
+      SENTINEL 3: Komari injects the operator's custom head HTML just before the
+      head closing tag. Never write that tag literally inside a comment here:
+      Vite and Komari both replace the *first* textual match, so a copy sitting
+      in a comment swallows the injection. `npm run verify` enforces this.
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- SENTINEL 4: custom body/footer HTML lands just before the body close tag. -->
+  </body>
+</html>
+

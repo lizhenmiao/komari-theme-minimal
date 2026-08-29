@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+/*
+ * Dark mode is driven by a `dark` class on <html>. The pre-paint script in
+ * index.html sets it from the `appearance` localStorage key that Komari's
+ * default theme also uses; useAppearance keeps it in sync afterwards.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* The only hues in the palette. Everything else is grayscale. */
+  --color-status-online: oklch(0.72 0.17 149);
+  --color-status-warn: oklch(0.79 0.16 79);
+  --color-status-offline: oklch(0.64 0.21 25);
+}
+
+:root {
+  color-scheme: light;
+}
+
+:root:is(.dark) {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+}
