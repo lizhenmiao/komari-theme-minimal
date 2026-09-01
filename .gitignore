@@ -3,15 +3,22 @@ dist/
 *.zip
 *.tsbuildinfo
 
-# Local env
+# 检查脚本的临时产物
+.render-entry.tsx
+.render-out/
+.tmp/
+.tmp-*
+*.tmp.txt
+
+# 本地环境变量
 .env
 .env.local
 .env.*.local
 
-# Editor / OS
+# 编辑器与操作系统
 .DS_Store
 Thumbs.db
 *.log
 
-# Claude local overrides
+# Claude 的本机覆盖配置
 .claude/settings.local.json

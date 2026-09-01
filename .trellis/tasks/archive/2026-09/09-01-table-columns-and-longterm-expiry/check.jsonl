@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "质量检查清单"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "静默失败防范、六层检查、断言必须验证会失败"}

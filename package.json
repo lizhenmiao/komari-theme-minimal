@@ -8,7 +8,18 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "verify": "node scripts/verify.mjs",
-    "package": "npm run build && npm run verify && node scripts/package.mjs"
+    "mock": "node scripts/mock-server.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "render": "node scripts/render-check.mjs",
+    "render:no-rpc2": "node scripts/render-check.mjs --no-rpc2",
+    "render:no-metrics": "node scripts/render-check.mjs --no-metrics",
+    "browser": "npm run build && node scripts/browser-check.mjs",
+    "dev:check": "node scripts/dev-check.mjs",
+    "format:check": "node scripts/format-check.mjs",
+    "test": "npm run format:check && npm run smoke && npm run render && npm run render:no-rpc2 && npm run render:no-metrics && npm run dev:check",
+    "icons": "node scripts/fetch-os-icons.mjs",
+    "flags": "node scripts/fetch-flags.mjs",
+    "package": "npm run build && npm run verify && node scripts/package.mjs && node scripts/zip-check.mjs"
   },
   "dependencies": {
     "i18next": "23.16.8",

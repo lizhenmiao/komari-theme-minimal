@@ -1,15 +1,14 @@
 /**
- * Post-build contract check.
+ * 构建后的契约校验。
  *
- * Catches the failures that only surface after the theme is installed, when a
- * local `vite preview` still looks perfectly fine:
+ * 抓的是那些只在主题装到服务端之后才暴露、本地 `vite preview` 一切正常的问题：
  *
- *   1. A rewritten <title> or description kills the operator's custom site name.
- *   2. A missing </head> or </body> kills custom head/body injection.
- *   3. An asset named `_foo.js` is skipped by Go's embed and 404s.
- *   4. An absolute asset path breaks under the /themes/{short}/dist/ prefix.
+ *   1. <title> 或描述被改写，运营者的自定义站点名失效。
+ *   2. 缺少 head/body 的闭合标签，自定义注入失效。
+ *   3. 产物名以 `_` 开头，Go 的 embed 会跳过，装上就 404。
+ *   4. 资源路径前缀不对，深层路由白屏。
  *
- * Run via `npm run verify`. Exits non-zero with a report on any failure.
+ * 由 `npm run verify` 调用。任何一项失败都会打印报告并以非零码退出。
  */
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -17,8 +16,8 @@ import { join } from 'node:path'
 const DIST = 'dist'
 const MANIFEST = 'komari-theme.json'
 
-// Must appear byte-for-byte in dist/index.html. Komari substitutes by exact
-// string match, so a reformat is a silent feature regression.
+// 必须在 dist/index.html 里字节级一致地出现。Komari 靠精确字符串匹配替换，
+// 所以任何重新格式化都是一次静默的功能退化。
 const SENTINELS = [
   '<title>Komari Monitor</title>',
   'A simple server monitor tool.',
@@ -39,14 +38,22 @@ const walk = async (dir) => {
   return out
 }
 
+// 先读 manifest：下面校验资源路径前缀时要用到 short。
+const manifest = await readFile(MANIFEST, 'utf8')
+  .then(JSON.parse)
+  .catch((err) => {
+    fail(`${MANIFEST} unreadable at repo root: ${err.message}`)
+    return null
+  })
+const manifestShort = typeof manifest?.short === 'string' ? manifest.short : null
+
 const html = await readFile(join(DIST, 'index.html'), 'utf8').catch(() => null)
 if (html === null) {
   fail(`${DIST}/index.html not found — run the build first.`)
 } else {
-  // Komari substitutes the FIRST match of each sentinel, and so does Vite when
-  // it injects the bundle tags. A sentinel that only survives inside a comment,
-  // or that appears twice, means the operator's custom content lands somewhere
-  // inert — which still builds and still previews fine locally.
+  // Komari 替换每个哨兵的第一处匹配，Vite 注入 bundle 标签时也一样。哨兵只
+  // 活在注释里、或者出现两次，都意味着运营者的自定义内容落到了一个不起作用的
+  // 位置 —— 而构建和本地预览都照常通过。
   const stripped = html.replace(/<!--[\s\S]*?-->/g, '')
   const occurrences = (haystack, needle) => haystack.split(needle).length - 1
 
@@ -63,9 +70,8 @@ if (html === null) {
     }
   }
 
-  // Vite injects the bundle tags at the first head closing tag it finds, so a
-  // comment that spells that tag out swallows them. The build succeeds, the
-  // sentinel count still looks right, and the installed theme renders blank.
+  // Vite 在它找到的第一个 head 闭合标签处注入 bundle 标签，所以注释里写出
+  // 那个标签就会把它们吞掉。构建成功，哨兵计数看起来也对，装上去是白屏。
   for (const [label, pattern] of [
     ['module script', /<script[^>]+type="module"/],
     ['stylesheet link', /<link[^>]+rel="stylesheet"/],
@@ -79,16 +85,32 @@ if (html === null) {
     }
   }
 
-  for (const match of html.matchAll(/(?:src|href)="(\/[^/][^"]*)"/g)) {
-    fail(`index.html references an absolute path, use a relative one: ${match[1]}`)
+  /*
+   * 资源路径必须是 /themes/{short}/dist/ 前缀的绝对路径。
+   *
+   * 相对路径（base: './'）在深层路由上会崩：服务端对未匹配路径返回
+   * index.html，浏览器把 ./assets/x.js 解析成 /instance/assets/x.js，
+   * 拿回来的是 HTML，按 MIME 拒绝执行，白屏。
+   */
+  const expectedBase = manifestShort ? `/themes/${manifestShort}/dist/` : null
+  const assetRefs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+    .map((match) => match[1])
+    .filter((ref) => /\.(js|css|svg|png|woff2?)$/.test(ref))
+
+  if (assetRefs.length === 0) {
+    fail('index.html 里没有任何资源引用，构建产物不完整')
+  }
+  for (const ref of assetRefs) {
+    if (ref.startsWith('./') || ref.startsWith('../')) {
+      fail(`资源用了相对路径，深层路由会白屏：${ref}`)
+    } else if (expectedBase && ref.startsWith('/') && !ref.startsWith(expectedBase)) {
+      fail(`资源路径前缀不对，应为 ${expectedBase}：${ref}`)
+    }
   }
 }
 
-// Source-level guard for the failure above, stated as a rule about the template
-// rather than about the output: never spell a closing head/body tag inside a
-// comment. Vite injects the bundle at the first textual match, so a commented
-// copy swallows the tags and the installed theme renders blank while
-// `vite preview` still looks correct.
+// 针对上面那个问题的源码级防线。规则写在模板上而不是产物上：绝不在注释里
+// 写出 head/body 的闭合标签。
 const source = await readFile('index.html', 'utf8').catch(() => null)
 if (source === null) {
   fail('index.html not found at the repo root.')
@@ -101,10 +123,9 @@ if (source === null) {
     }
   }
 
-  // The sentinels are matched byte-for-byte, so keep this one file pure ASCII
-  // with no BOM. Windows PowerShell's `Set-Content -Encoding utf8` prepends a
-  // BOM, which lands before <!doctype html> and mangles any non-ASCII already
-  // in the file. Both happened during development of this scaffold.
+  // 哨兵是字节级匹配，所以这个文件必须保持纯 ASCII 且无 BOM。注意 Windows
+  // PowerShell 的 `Set-Content -Encoding utf8` 会加 BOM，落在 doctype 之前，
+  // 同时把文件里已有的非 ASCII 字符搞坏。
   if (source.charCodeAt(0) === 0xfeff) {
     fail('index.html starts with a BOM; write it as UTF-8 without BOM')
   }
@@ -121,13 +142,6 @@ for (const file of files) {
     fail(`asset starts with "_" and Go's embed will skip it: ${file}`)
   }
 }
-
-const manifest = await readFile(MANIFEST, 'utf8')
-  .then(JSON.parse)
-  .catch((err) => {
-    fail(`${MANIFEST} unreadable at repo root: ${err.message}`)
-    return null
-  })
 
 if (manifest) {
   if (!manifest.name) fail(`${MANIFEST} is missing the required "name" field.`)

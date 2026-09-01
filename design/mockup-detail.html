@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>minimal - 设计稿 / 详情页</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+    <style type="text/tailwindcss">
+      @custom-variant dark (&:where(.dark, .dark *));
+      :root { color-scheme: light; }
+      :root:is(.dark) { color-scheme: dark; }
+      body {
+        @apply bg-slate-100 text-slate-800 antialiased
+               dark:bg-slate-950 dark:text-slate-100;
+      }
+      .card {
+        @apply rounded-xl border border-white/70 bg-white/75 backdrop-blur-xl
+               shadow-[0_1px_2px_rgb(15_23_42/0.04)]
+               dark:border-slate-700/50 dark:bg-slate-900/70;
+      }
+
+      /* 背景层，跟首页一致 */
+      .bg-layer { @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden; }
+      .aurora {
+        @apply absolute left-1/2 top-[-34vh] h-[58vh] w-[150vw] -translate-x-1/2
+               blur-[70px] opacity-[0.22] dark:opacity-[0.16];
+        background: linear-gradient(
+          100deg,
+          transparent 8%,
+          #6366f1 26%,
+          #a855f7 44%,
+          #14b8a6 62%,
+          transparent 88%
+        );
+        animation: sway 28s ease-in-out infinite;
+      }
+      .grid-lines {
+        @apply absolute inset-0 text-slate-400/20 dark:text-slate-500/10;
+        background-image:
+          linear-gradient(to right, currentColor 1px, transparent 1px),
+          linear-gradient(to bottom, currentColor 1px, transparent 1px);
+        background-size: 34px 34px;
+        -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+        mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+      }
+      @keyframes sway {
+        0%, 100% { transform: translate(-50%, 0); }
+        50%      { transform: translate(-46%, 2.5vh); }
+      }
+
+      /* 在线状态点：水波纹呼吸，跟首页一致 */
+      .dot { @apply relative inline-block size-2 shrink-0 rounded-full; }
+      .dot-live { animation: breathe 2.4s ease-in-out infinite; }
+      .dot-live::after {
+        content: '';
+        @apply absolute inset-0 rounded-full;
+        background-color: inherit;
+        animation: ripple 2.4s ease-out infinite;
+      }
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); }
+        50%      { transform: scale(0.86); }
+      }
+      @keyframes ripple {
+        0%   { transform: scale(1);   opacity: 0.55; }
+        70%  { transform: scale(3.2); opacity: 0; }
+        100% { transform: scale(3.2); opacity: 0; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .aurora { animation: none; }
+        .dot-live { animation: none; }
+        .dot-live::after { animation: none; opacity: 0.25; transform: scale(2); }
+      }
+      .lb { @apply text-[12px] font-medium text-slate-400 dark:text-slate-500; }
+      .num { @apply font-mono tabular-nums; }
+      .chip { @apply rounded px-1.5 py-0.5 text-[12px] font-medium leading-[1.4]; }
+      .pill {
+        @apply inline-flex items-baseline gap-1 rounded-full px-2.5 py-1
+               text-[12px] font-medium leading-[1.5];
+      }
+      .p-cpu  { @apply bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400; }
+      .p-mem  { @apply bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400; }
+      .p-swap { @apply bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400; }
+      .track { @apply h-[6px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800; }
+      .bar { @apply h-full rounded-full; }
+      .f-cpu  { @apply bg-gradient-to-r from-indigo-400 to-indigo-500; }
+      .f-mem  { @apply bg-gradient-to-r from-violet-400 to-violet-500; }
+      .f-disk { @apply bg-gradient-to-r from-amber-400 to-amber-500; }
+      .f-swap { @apply bg-gradient-to-r from-teal-400 to-teal-500; }
+      .f-warn { @apply bg-gradient-to-r from-amber-400 to-orange-500; }
+      .t-cpu  { @apply text-indigo-500 dark:text-indigo-400; }
+      .t-mem  { @apply text-violet-500 dark:text-violet-400; }
+      .t-disk { @apply text-amber-600 dark:text-amber-400; }
+      .t-swap { @apply text-teal-600 dark:text-teal-400; }
+      .t-quo  { @apply text-sky-600 dark:text-sky-400; }
+      .t-warn { @apply text-orange-500 dark:text-orange-400; }
+      .t-bad  { @apply text-rose-500 dark:text-rose-400; }
+      .irow { @apply flex items-baseline justify-between gap-3 py-[3px] text-[13px]; }
+      .irow dt { @apply shrink-0 text-slate-400 dark:text-slate-500; }
+      .irow dd { @apply truncate text-right; }
+      .seg { @apply flex items-center gap-0.5 rounded-lg bg-slate-200/70 p-0.5 dark:bg-slate-800; }
+      .seg-on {
+        @apply rounded-md bg-white px-2.5 py-1 text-[13px] font-medium text-slate-800
+               shadow-sm dark:bg-slate-700 dark:text-slate-100;
+      }
+      .seg-off { @apply rounded-md px-2.5 py-1 text-[13px] font-medium text-slate-500; }
+      .iconbtn {
+        @apply grid size-9 place-items-center rounded-lg text-slate-500 transition
+               hover:bg-slate-200/70 hover:text-slate-900
+               dark:hover:bg-slate-800 dark:hover:text-slate-100;
+      }
+      .hair { @apply border-slate-100 dark:border-slate-800; }
+      .uplot, .u-wrap { @apply !w-full; }
+      .u-legend { @apply !hidden; }
+    </style>
+  </head>
+  <body class="km-layout">
+    <div class="bg-layer" aria-hidden="true">
+      <div class="aurora"></div>
+      <div class="grid-lines"></div>
+    </div>
+
+    <header
+      class="km-navbar sticky top-0 z-20 border-b hair bg-white/70 backdrop-blur-xl
+             dark:bg-slate-950/70"
+    >
+      <div class="mx-auto flex h-15 max-w-[1600px] items-center gap-2 px-4 sm:px-6">
+        <a href="./mockup-index.html" class="iconbtn" title="返回">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               class="size-4.5"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <!-- 国旗自托管说明见 mockup-index.html 里 flag() 的注释 -->
+        <img src="https://flagcdn.com/w40/jp.png" alt="JP" width="20" height="15"
+             class="h-[15px] w-5 shrink-0 rounded-[2px] object-cover
+                    ring-1 ring-black/5 dark:ring-white/10" />
+        <!-- Ubuntu 官方图标，path 取自 Simple Icons (CC0) -->
+        <svg viewBox="0 0 24 24" class="size-4 shrink-0" fill="#E95420"
+             role="img" aria-label="ubuntu"><path d="M17.61.455a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zM12.92.8C8.923.777 5.137 2.941 3.148 6.451a4.5 4.5 0 0 1 .26-.007 4.92 4.92 0 0 1 2.585.737A8.316 8.316 0 0 1 12.688 3.6 4.944 4.944 0 0 1 13.723.834 11.008 11.008 0 0 0 12.92.8zm9.226 4.994a4.915 4.915 0 0 1-1.918 2.246 8.36 8.36 0 0 1-.273 8.303 4.89 4.89 0 0 1 1.632 2.54 11.156 11.156 0 0 0 .559-13.089zM3.41 7.932A3.41 3.41 0 0 0 0 11.342a3.41 3.41 0 0 0 3.41 3.409 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zm2.027 7.866a4.908 4.908 0 0 1-2.915.358 11.1 11.1 0 0 0 7.991 6.698 11.234 11.234 0 0 0 2.422.249 4.879 4.879 0 0 1-.999-2.85 8.484 8.484 0 0 1-.836-.136 8.304 8.304 0 0 1-5.663-4.32zm11.405.928a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41z" /></svg>
+        <span class="dot dot-live bg-emerald-500"></span>
+        <span class="ml-1 text-[15px] font-semibold tracking-tight">Bravo 东京</span>
+        <span class="chip bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">生产</span>
+        <span class="num hidden text-[12px] text-slate-400 sm:inline">
+          8核 · 15.6 GB · 158 GB · Ubuntu 24.04 · KVM
+        </span>
+        <div class="flex-1"></div>
+        <button id="theme-toggle" class="iconbtn" title="外观">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               class="size-4 dark:hidden"><circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               class="hidden size-4 dark:block"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="km-main km-page-node mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
+      <!-- 当前占用：已用在条左、总量在条右 -->
+      <section class="km-node-current mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="card p-4">
+          <div class="flex items-baseline justify-between">
+            <p class="lb">CPU</p>
+            <p class="num text-xl font-semibold leading-none t-warn">87.6%</p>
+          </div>
+          <div class="track mt-2.5"><div class="bar f-warn" style="width:87.6%"></div></div>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="num text-[12px] t-warn">7.0核</span>
+            <span class="num text-[12px] text-slate-400">8核</span>
+          </div>
+          <p class="num mt-1.5 truncate text-[12px] text-slate-400">Intel Xeon Platinum 8375C</p>
+        </div>
+
+        <div class="card p-4">
+          <div class="flex items-baseline justify-between">
+            <p class="lb">内存</p>
+            <p class="num text-xl font-semibold leading-none t-warn">89.1%</p>
+          </div>
+          <div class="track mt-2.5"><div class="bar f-warn" style="width:89.1%"></div></div>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="num text-[12px] t-warn">13.9 GB</span>
+            <span class="num text-[12px] text-slate-400">15.6 GB</span>
+          </div>
+          <p class="num mt-1.5 text-[12px] text-slate-400">剩余 1.70 GB</p>
+        </div>
+
+        <div class="card p-4">
+          <div class="flex items-baseline justify-between">
+            <p class="lb">硬盘</p>
+            <p class="num text-xl font-semibold leading-none t-warn">76.6%</p>
+          </div>
+          <div class="track mt-2.5"><div class="bar f-warn" style="width:76.6%"></div></div>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="num text-[12px] t-warn">121 GB</span>
+            <span class="num text-[12px] text-slate-400">158 GB</span>
+          </div>
+          <p class="num mt-1.5 text-[12px] text-slate-400">剩余 37.0 GB</p>
+        </div>
+
+        <div class="card p-4">
+          <div class="flex items-baseline justify-between">
+            <p class="lb">Swap <span class="t-swap">已开启</span></p>
+            <p class="num text-xl font-semibold leading-none t-swap">20.1%</p>
+          </div>
+          <div class="track mt-2.5"><div class="bar f-swap" style="width:20.1%"></div></div>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="num text-[12px] t-swap">412 MB</span>
+            <span class="num text-[12px] text-slate-400">2.00 GB</span>
+          </div>
+          <p class="num mt-1.5 text-[12px] text-slate-400">剩余 1.60 GB</p>
+        </div>
+      </section>
+      <!-- 网速 / 流量 / 负载 / 时间 / 三网，一行五格 -->
+      <section class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div class="card p-4">
+          <p class="lb mb-2">网速</p>
+          <dl>
+            <div class="irow"><dt><span class="t-cpu">&uarr;</span> 上行</dt><dd class="num font-semibold">41.2 MB/s</dd></div>
+            <div class="irow"><dt><span class="t-quo">&darr;</span> 下行</dt><dd class="num font-semibold">88.3 MB/s</dd></div>
+            <div class="irow border-t hair pt-1.5"><dt>峰值</dt><dd class="num text-slate-400">96.4 / 214 MB/s</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">流量</p>
+          <dl>
+            <div class="irow"><dt><span class="t-cpu">&uarr;</span> 上行</dt><dd class="num font-semibold">6.02 TB</dd></div>
+            <div class="irow"><dt><span class="t-quo">&darr;</span> 下行</dt><dd class="num font-semibold">12.8 TB</dd></div>
+            <div class="irow border-t hair pt-1.5"><dt>合计 / 配额</dt><dd class="num text-slate-400">18.8 TB / 不限</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">负载</p>
+          <dl>
+            <div class="irow"><dt>1 / 5 / 15 分</dt>
+              <dd class="num font-semibold">6.81 <span class="font-normal text-slate-400">5.94 4.12</span></dd></div>
+            <div class="irow"><dt>进程</dt><dd class="num">418</dd></div>
+            <div class="irow border-t hair pt-1.5"><dt>连接</dt><dd class="num">2913</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">时间</p>
+          <dl>
+            <div class="irow"><dt>在线</dt><dd class="num font-semibold">118天21小时</dd></div>
+            <div class="irow"><dt>到期</dt><dd class="num">01/15/2027</dd></div>
+            <div class="irow border-t hair pt-1.5"><dt>剩余</dt><dd class="num font-semibold t-quo">139 天</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">三网延迟</p>
+          <!-- 三个药丸一组，跟卡片视图一致 -->
+          <div class="flex flex-wrap gap-1.5">
+            <span class="pill p-cpu">
+              <span class="opacity-60">电信</span>
+              <span class="num text-[14px] font-semibold">38</span>
+              <span class="text-[11px] opacity-60">ms</span>
+            </span>
+            <span class="pill p-mem">
+              <span class="opacity-60">联通</span>
+              <span class="num text-[14px] font-semibold">52</span>
+              <span class="text-[11px] opacity-60">ms</span>
+            </span>
+            <span class="pill p-swap">
+              <span class="opacity-60">移动</span>
+              <span class="num text-[14px] font-semibold">41</span>
+              <span class="text-[11px] opacity-60">ms</span>
+            </span>
+          </div>
+          <p class="num mt-2 text-[12px] text-slate-400">丢包 <span class="t-warn">2.1%</span></p>
+        </div>
+      </section>
+
+      <div class="mb-2.5 flex items-center justify-between gap-3">
+        <h2 class="text-[15px] font-semibold tracking-tight">历史曲线</h2>
+        <div class="km-range-switch seg">
+          <button class="seg-off">1时</button>
+          <button class="seg-on">4时</button>
+          <button class="seg-off">24时</button>
+          <button class="seg-off">7天</button>
+          <button class="seg-off">30天</button>
+        </div>
+      </div>
+
+      <section class="km-node-charts grid gap-3 xl:grid-cols-2">
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb"><span class="t-cpu">&#9679;</span> CPU 占用</p>
+            <p class="num text-[12px] text-slate-400">峰值 94.2% · 均值 78.4%</p>
+          </div>
+          <div id="c-cpu" class="km-load-chart h-[170px]"></div>
+        </div>
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb"><span class="t-mem">&#9679;</span> 内存 <span class="t-swap">&#9679;</span> Swap</p>
+            <p class="num text-[12px] text-slate-400">13.9 / 15.6 GB · 412 MB / 2 GB</p>
+          </div>
+          <div id="c-mem" class="km-load-chart h-[170px]"></div>
+        </div>
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb"><span class="t-disk">&#9679;</span> 硬盘占用</p>
+            <p class="num text-[12px] text-slate-400">121 / 158 GB</p>
+          </div>
+          <div id="c-disk" class="km-load-chart h-[170px]"></div>
+        </div>
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb"><span class="t-quo">&#9679;</span> 下行 <span class="t-cpu">&#9679;</span> 上行</p>
+            <p class="num text-[12px] text-slate-400">88.3 / 41.2 MB/s</p>
+          </div>
+          <div id="c-net" class="km-load-chart h-[170px]"></div>
+        </div>
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb"><span class="t-warn">&#9679;</span> 负载</p>
+            <p class="num text-[12px] text-slate-400">1 / 5 分钟</p>
+          </div>
+          <div id="c-load" class="km-load-chart h-[170px]"></div>
+        </div>
+        <div class="card p-4">
+          <div class="mb-2.5 flex items-baseline justify-between">
+            <p class="lb">
+              <span class="t-cpu">&#9679;</span> 电信
+              <span class="t-mem">&#9679;</span> 联通
+              <span class="t-swap">&#9679;</span> 移动
+            </p>
+            <p class="num text-[12px] text-slate-400">断口 = 丢包</p>
+          </div>
+          <div id="c-ping" class="km-load-chart h-[170px]"></div>
+        </div>
+      </section>
+
+      <section class="km-node-info mt-4 grid gap-3 lg:grid-cols-3">
+        <div class="card p-4">
+          <p class="lb mb-2">硬件</p>
+          <dl>
+            <div class="irow"><dt>CPU</dt><dd>Intel Xeon Platinum 8375C</dd></div>
+            <div class="irow"><dt>核心</dt><dd class="num">8 核（物理 4）</dd></div>
+            <div class="irow"><dt>内存</dt><dd class="num">15.6 GB</dd></div>
+            <div class="irow"><dt>Swap</dt><dd class="num">2.00 GB <span class="t-swap">已开启</span></dd></div>
+            <div class="irow"><dt>硬盘</dt><dd class="num">158 GB</dd></div>
+            <div class="irow"><dt>GPU</dt><dd class="text-slate-400">无</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">系统</p>
+          <dl>
+            <div class="irow"><dt>系统</dt><dd>Ubuntu 24.04 LTS</dd></div>
+            <div class="irow"><dt>架构</dt><dd>x86_64</dd></div>
+            <div class="irow"><dt>虚拟化</dt><dd>KVM</dd></div>
+            <div class="irow"><dt>内核</dt><dd class="num">6.8.0-45-generic</dd></div>
+            <div class="irow"><dt>Agent</dt><dd class="num">v1.0.9</dd></div>
+            <div class="irow"><dt>地区</dt><dd>JP 东京</dd></div>
+          </dl>
+        </div>
+        <div class="card p-4">
+          <p class="lb mb-2">账单</p>
+          <dl>
+            <div class="irow"><dt>价格</dt><dd class="num">24.00 USD / 月</dd></div>
+            <div class="irow"><dt>周期</dt><dd class="num">30 天</dd></div>
+            <div class="irow"><dt>到期</dt><dd class="num">01/15/2027</dd></div>
+            <div class="irow"><dt>剩余</dt><dd class="num t-quo font-semibold">139 天</dd></div>
+            <div class="irow"><dt>流量重置</dt><dd class="num">每月 1 日</dd></div>
+            <div class="irow"><dt>标签</dt><dd>生产</dd></div>
+          </dl>
+        </div>
+      </section>
+    </main>
+
+    <footer class="km-footer mx-auto max-w-[1600px] px-4 pb-8 pt-1 sm:px-6">
+      <div class="border-t hair pt-3.5 text-center text-[13px] text-slate-400">
+        <p>Powered by Komari Monitor.</p>
+      </div>
+    </footer>
+    <script>
+      const dark = () => document.documentElement.classList.contains('dark')
+      /* 曲线颜色跟卡片指标色一一对应 */
+      const C = {
+        cpu:  ['#6366f1', '#818cf8'],
+        mem:  ['#8b5cf6', '#a78bfa'],
+        swap: ['#14b8a6', '#2dd4bf'],
+        disk: ['#f59e0b', '#fbbf24'],
+        down: ['#0ea5e9', '#38bdf8'],
+        up:   ['#6366f1', '#818cf8'],
+        warn: ['#f97316', '#fb923c'],
+        ct:   ['#6366f1', '#818cf8'],
+        cu:   ['#8b5cf6', '#a78bfa'],
+        cm:   ['#14b8a6', '#2dd4bf'],
+      }
+      const pick = (k) => C[k][dark() ? 1 : 0]
+      const alpha = (hex, a) => {
+        const n = parseInt(hex.slice(1), 16)
+        return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`
+      }
+      const chrome = () => ({
+        axis: dark() ? '#64748b' : '#94a3b8',
+        grid: dark() ? '#1e293b' : '#f1f5f9',
+      })
+
+      const size = (n) => {
+        if (!n) return '0'
+        const u = ['B', 'K', 'M', 'G', 'T']
+        const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), u.length - 1)
+        return `${(n / 1024 ** i).toFixed(i > 1 ? 1 : 0)}${u[i]}`
+      }
+
+      const makeOpts = (el, { series, fmt, range }) => {
+        const c = chrome()
+        return {
+          width: el.clientWidth,
+          height: 170,
+          padding: [8, 8, 0, 0],
+          cursor: { y: false, points: { size: 6, width: 1 } },
+          legend: { show: false },
+          scales: { y: range ? { range } : {} },
+          axes: [
+            { stroke: c.axis, grid: { stroke: c.grid, width: 1 }, ticks: { show: false },
+              font: '12px ui-monospace, monospace', size: 30, space: 74 },
+            { stroke: c.axis, grid: { stroke: c.grid, width: 1 }, ticks: { show: false },
+              font: '12px ui-monospace, monospace', size: 52, values: (u, t) => t.map(fmt) },
+          ],
+          series: [
+            { value: (u, ts) => new Date(ts * 1000).toLocaleTimeString('zh-CN') },
+            ...series.map((s) => {
+              const col = pick(s.key)
+              return {
+                label: s.label,
+                stroke: col,
+                width: 1.6,
+                fill: s.fill ? alpha(col, dark() ? 0.16 : 0.11) : undefined,
+                points: { show: false },
+                /* null 不连线，用断口表示丢包 */
+                spanGaps: false,
+                value: (u, v) => (v == null ? '丢包' : fmt(v)),
+              }
+            }),
+          ],
+        }
+      }
+
+      const N = 240
+      const t0 = Math.floor(Date.now() / 1000) - 4 * 3600
+      const time = Array.from({ length: N }, (_, i) => t0 + i * 60)
+      const wave = (seed, base, amp) =>
+        Array.from({ length: N }, (_, i) => {
+          const s = Math.sin(i / 9 + seed) * 0.6 + Math.sin(i / 3.3 + seed * 2) * 0.4
+          return Math.max(0, base + s * amp)
+        })
+
+      const ct = wave(9, 38, 6), cu = wave(4, 52, 8), cm = wave(6, 41, 7)
+      for (let i = 70; i < 78; i++) { ct[i] = null; cm[i] = null }
+      for (let i = 155; i < 159; i++) cu[i] = null
+
+      const charts = [
+        { el:'c-cpu', data:[time, wave(1, 78, 12)],
+          series:[{ key:'cpu', label:'CPU', fill:true }],
+          fmt:(v) => `${v.toFixed(0)}%`, range:[0, 100] },
+        { el:'c-mem', data:[time, wave(2, 86, 5), wave(7, 19, 6)],
+          series:[{ key:'mem', label:'内存', fill:true }, { key:'swap', label:'Swap' }],
+          fmt:(v) => `${v.toFixed(0)}%`, range:[0, 100] },
+        { el:'c-disk', data:[time, wave(8, 76, 1.4)],
+          series:[{ key:'disk', label:'硬盘', fill:true }],
+          fmt:(v) => `${v.toFixed(0)}%`, range:[0, 100] },
+        { el:'c-net', data:[time, wave(3, 706e6, 3e8), wave(5, 329e6, 1.6e8)],
+          series:[{ key:'down', label:'下行', fill:true }, { key:'up', label:'上行' }],
+          fmt:(v) => `${size(v / 8)}/s` },
+        { el:'c-load', data:[time, wave(4, 5.9, 1.8), wave(6, 4.4, 1.1)],
+          series:[{ key:'warn', label:'1 分钟', fill:true }, { key:'disk', label:'5 分钟' }],
+          fmt:(v) => v.toFixed(2) },
+        { el:'c-ping', data:[time, ct, cu, cm],
+          series:[{ key:'ct', label:'电信' }, { key:'cu', label:'联通' }, { key:'cm', label:'移动' }],
+          fmt:(v) => `${v.toFixed(0)}ms` },
+      ]
+
+      let live = []
+      const draw = () => {
+        live.forEach((u) => u.destroy())
+        live = charts.map((c) => {
+          const el = document.getElementById(c.el)
+          el.innerHTML = ''
+          return new uPlot(makeOpts(el, c), c.data, el)
+        })
+      }
+      draw()
+
+      addEventListener('resize', () =>
+        live.forEach((u, i) =>
+          u.setSize({ width: document.getElementById(charts[i].el).clientWidth, height: 170 })
+        )
+      )
+
+      /* uPlot 把颜色写死在构造参数里，切主题必须销毁重建 */
+      document.getElementById('theme-toggle').onclick = () => {
+        document.documentElement.classList.toggle('dark')
+        draw()
+      }
+
+      document.querySelectorAll('.km-range-switch button').forEach((btn) => {
+        btn.onclick = () =>
+          document.querySelectorAll('.km-range-switch button').forEach((b) => {
+            b.className = b === btn ? 'seg-on' : 'seg-off'
+          })
+      })
+    </script>
+  </body>
+</html>

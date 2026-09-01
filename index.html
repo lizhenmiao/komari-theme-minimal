@@ -3,20 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!--
+      NOTE: comments in this one file stay ASCII-only, unlike the rest of the
+      repo which is commented in Chinese. `npm run verify` enforces it.
+
+      The server substitutes the sentinels below by byte-level string match, so
+      this file is the only one where corrupted bytes mean silent breakage
+      rather than a visible error. Pure ASCII makes it immune to the encoding
+      accident that Windows tooling causes by default (PowerShell's
+      `Set-Content -Encoding utf8` adds a BOM ahead of the doctype, and
+      `Get-Content -Raw` reads UTF-8 as GBK and mangles every CJK character).
+
+      Written as `/favicon.svg` so Vite prefixes it with the build base and the
+      artifact gets /themes/{short}/dist/favicon.svg, while dev keeps it as-is.
+      Not a relative href: that resolves against the current route, so on
+      /instance/<uuid> it would request /instance/favicon.svg and 404. Not a
+      hand-written /themes/{short}/ prefix either, since that would give
+      `short` a second source of truth that goes stale on rename.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!--
-      SENTINEL 1 and 2. Komari string-replaces the exact <title> element and the
-      exact description text below with the operator's configured values.
-      Both must stay byte-for-byte identical. Do not template them, do not let a
-      plugin rewrite them, do not reformat the attribute order.
+      SENTINEL 1 and 2. The server replaces the exact <title> element and the
+      exact description text below with the operator's configured values. Both
+      must stay byte-for-byte identical: do not template them, do not let a
+      plugin rewrite them, do not reorder the attributes.
     -->
     <title>Komari Monitor</title>
     <meta name="description" content="A simple server monitor tool." />
 
     <script>
-      // Apply the stored appearance before first paint to avoid a light flash on
-      // dark-mode loads. Shares the `appearance` key with the default theme.
+      // Apply the stored appearance before first paint so dark-mode loads do
+      // not flash white. The `appearance` key is shared with the default theme.
       ;(function () {
         try {
           var pref = localStorage.getItem('appearance') || 'system'
@@ -26,15 +44,16 @@
               window.matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.classList.toggle('dark', dark)
         } catch (e) {
-          /* private mode / storage disabled: fall through to light */
+          /* private mode or storage disabled: fall through to light */
         }
       })()
     </script>
     <!--
-      SENTINEL 3: Komari injects the operator's custom head HTML just before the
-      head closing tag. Never write that tag literally inside a comment here:
-      Vite and Komari both replace the *first* textual match, so a copy sitting
-      in a comment swallows the injection. `npm run verify` enforces this.
+      SENTINEL 3: the server injects the operator's custom head HTML just
+      before the head closing tag. Never write that tag literally inside a
+      comment here -- Vite and the server both replace only the first textual
+      match, so a copy in a comment swallows the injection. `npm run verify`
+      catches this.
     -->
   </head>
   <body>
@@ -43,4 +62,3 @@
     <!-- SENTINEL 4: custom body/footer HTML lands just before the body close tag. -->
   </body>
 </html>
-

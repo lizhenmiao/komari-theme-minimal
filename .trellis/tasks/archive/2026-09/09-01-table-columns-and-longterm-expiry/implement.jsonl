@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端约定入口与开发前检查清单"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件结构、props 约定、null 语义"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "hook 两种数据模式与引用稳定性"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "store 引用相等的硬要求与降级链"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "unknown 窄化与严格选项的影响"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "分层规则与 km-* 锚点"}

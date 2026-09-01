@@ -1,18 +1,17 @@
 @import 'tailwindcss';
 
 /*
- * Dark mode is driven by a `dark` class on <html>. The pre-paint script in
- * index.html sets it from the `appearance` localStorage key that Komari's
- * default theme also uses; useAppearance keeps it in sync afterwards.
+ * Tailwind v4 会自动从项目根目录扫描源文件，那样 design/ 里的独立 HTML 设计稿
+ * 也会被扫进最终样式表。设计稿只是视觉参照，不属于产物。
+ */
+@source not "../design";
+
+/*
+ * 深色模式由 <html> 上的 `dark` class 驱动。index.html 里的 pre-paint 脚本
+ * 根据 localStorage 的 `appearance` 键在首屏之前打上它（这个键和 Komari
+ * 默认主题共用），之后由 useAppearance 负责同步。
  */
 @custom-variant dark (&:where(.dark, .dark *));
-
-@theme {
-  /* The only hues in the palette. Everything else is grayscale. */
-  --color-status-online: oklch(0.72 0.17 149);
-  --color-status-warn: oklch(0.79 0.16 79);
-  --color-status-offline: oklch(0.64 0.21 25);
-}
 
 :root {
   color-scheme: light;
@@ -23,5 +22,258 @@
 }
 
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+  @apply bg-slate-100 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
+}
+
+@layer components {
+  /* 半透明，让背景光带透上来。 */
+  .km-card {
+    @apply rounded-xl border border-white/70 bg-white/75 shadow-[0_1px_2px_rgb(15_23_42/0.04)]
+      backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/70;
+  }
+
+  /* 只有可点击的卡片才有悬停反馈。 */
+  .km-card-link {
+    @apply cursor-pointer transition duration-150 hover:border-slate-300
+      hover:shadow-[0_4px_16px_rgb(15_23_42/0.08)] dark:hover:border-slate-700;
+  }
+
+  .km-label {
+    @apply text-[12px] font-medium text-slate-400 dark:text-slate-500;
+  }
+
+  /* 指标组上方的小标题。 */
+  .km-section {
+    @apply text-[11px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500;
+  }
+
+  .km-num {
+    @apply font-mono tabular-nums;
+  }
+
+  .km-chip {
+    @apply rounded px-1.5 py-0.5 text-[12px] font-medium leading-[1.4];
+  }
+
+  .km-pill {
+    @apply inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium
+      leading-[1.5];
+  }
+
+  .km-track {
+    @apply h-[6px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800;
+  }
+
+  .km-bar {
+    @apply h-full rounded-full transition-[width] duration-500;
+  }
+
+  .km-hair {
+    @apply border-slate-100 dark:border-slate-800;
+  }
+
+  .km-seg {
+    @apply flex items-center gap-0.5 rounded-lg bg-slate-200/70 p-0.5 dark:bg-slate-800;
+  }
+
+  .km-seg-on {
+    @apply rounded-md bg-white px-3 py-1 text-[13px] font-medium text-slate-800 shadow-sm
+      dark:bg-slate-700 dark:text-slate-100;
+  }
+
+  .km-seg-off {
+    @apply rounded-md px-3 py-1 text-[13px] font-medium text-slate-500 hover:text-slate-700
+      dark:hover:text-slate-300;
+  }
+
+  .km-iconbtn {
+    @apply grid size-9 place-items-center rounded-lg text-slate-500 transition
+      hover:bg-slate-200/70 hover:text-slate-900 dark:hover:bg-slate-800
+      dark:hover:text-slate-100;
+  }
+}
+
+/*
+ * 逐指标配色。每个指标占一个色系，扫一眼就知道哪条是哪条；不论本来是什么颜色，
+ * 超过 75% 转橙、超过 90% 转红。
+ */
+@layer components {
+  .km-fill-cpu {
+    @apply bg-gradient-to-r from-indigo-400 to-indigo-500;
+  }
+  .km-fill-mem {
+    @apply bg-gradient-to-r from-violet-400 to-violet-500;
+  }
+  .km-fill-disk {
+    @apply bg-gradient-to-r from-amber-400 to-amber-500;
+  }
+  .km-fill-swap {
+    @apply bg-gradient-to-r from-teal-400 to-teal-500;
+  }
+  .km-fill-quota {
+    @apply bg-gradient-to-r from-sky-400 to-sky-500;
+  }
+  .km-fill-warn {
+    @apply bg-gradient-to-r from-amber-400 to-orange-500;
+  }
+  .km-fill-bad {
+    @apply bg-gradient-to-r from-rose-400 to-rose-500;
+  }
+
+  .km-text-cpu {
+    @apply text-indigo-500 dark:text-indigo-400;
+  }
+  .km-text-mem {
+    @apply text-violet-500 dark:text-violet-400;
+  }
+  .km-text-disk {
+    @apply text-amber-600 dark:text-amber-400;
+  }
+  .km-text-swap {
+    @apply text-teal-600 dark:text-teal-400;
+  }
+  .km-text-quota {
+    @apply text-sky-600 dark:text-sky-400;
+  }
+  .km-text-warn {
+    @apply text-orange-500 dark:text-orange-400;
+  }
+  .km-text-bad {
+    @apply text-rose-500 dark:text-rose-400;
+  }
+
+  /* 延迟药丸的底色。 */
+  .km-pill-cpu {
+    @apply bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400;
+  }
+  .km-pill-mem {
+    @apply bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400;
+  }
+  .km-pill-swap {
+    @apply bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400;
+  }
+  .km-pill-warn {
+    @apply bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400;
+  }
+  .km-pill-bad {
+    @apply bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400;
+  }
+  .km-pill-neutral {
+    @apply bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+  }
+}
+
+/*
+ * 状态点。在线是带扩散水波纹的呼吸效果，离线是静态实心点 —— 死掉的节点不该
+ * 看起来还活着。
+ */
+@layer components {
+  .km-dot {
+    @apply relative inline-block size-2 shrink-0 rounded-full;
+  }
+
+  .km-dot-live {
+    animation: km-breathe 2.4s ease-in-out infinite;
+  }
+
+  .km-dot-live::after {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    background-color: inherit;
+    animation: km-ripple 2.4s ease-out infinite;
+  }
+}
+
+@keyframes km-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.86);
+  }
+}
+
+@keyframes km-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+/*
+ * 装饰背景：顶部一条柔和光带 + 向下淡出的网格线。
+ * fixed 且不接收事件，既不随页面滚动，也不吞掉点击。
+ */
+@layer components {
+  .km-bg {
+    @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden;
+  }
+
+  .km-bg-aurora {
+    @apply absolute top-[-34vh] left-1/2 h-[58vh] w-[150vw] -translate-x-1/2 opacity-[0.22]
+      blur-[70px] dark:opacity-[0.16];
+    background: linear-gradient(
+      100deg,
+      transparent 8%,
+      #6366f1 26%,
+      #a855f7 44%,
+      #14b8a6 62%,
+      transparent 88%
+    );
+    animation: km-sway 28s ease-in-out infinite;
+  }
+
+  .km-bg-grid {
+    @apply absolute inset-0 text-slate-400/20 dark:text-slate-500/10;
+    background-image:
+      linear-gradient(to right, currentColor 1px, transparent 1px),
+      linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+    mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+  }
+}
+
+@keyframes km-sway {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-46%, 2.5vh);
+  }
+}
+
+/* 尊重系统的「减少动态效果」：停掉动画，但每种状态仍然可辨认。 */
+@media (prefers-reduced-motion: reduce) {
+  .km-bg-aurora {
+    animation: none;
+  }
+  .km-dot-live {
+    animation: none;
+  }
+  .km-dot-live::after {
+    animation: none;
+    opacity: 0.25;
+    transform: scale(2);
+  }
+  .km-bar {
+    transition: none;
+  }
+}
+
+/* uPlot 自带的图例和坐标轴样式，调成和卡片表面一致。 */
+.uplot,
+.u-wrap {
+  width: 100% !important;
+}
+
+.u-legend {
+  display: none !important;
 }

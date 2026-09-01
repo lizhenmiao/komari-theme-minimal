@@ -60,13 +60,46 @@ scripts/package.mjs    产出 zip，manifest 在归档根
    | `</head>` | 自定义 head HTML + 原标签 |
    | `</body>` | 自定义 body/footer HTML + 原标签 |
 
-2. **绝不在 `index.html` 的注释里写出 `</head>` 或 `</body>` 字面量。** Vite 注入 bundle 标签时匹配**第一处**文本，注释里的副本会把 script/link 吞进注释，页面全白。开发本脚手架时真实踩过这个坑，`verify.mjs` 已加断言。
+2. **绝不在 `index.html` 的注释里写出 `</head>` 或 `</body>` 字面量。** Vite 注入 bundle 标签时匹配**第一处**文本，注释里的副本会把 script/link 吞进注释，页面全白。`verify.mjs` 已加断言。
 
-3. **`index.html` 保持纯 ASCII 且无 BOM。** Windows PowerShell 的 `Set-Content -Encoding utf8` 会加 BOM，BOM 落在 `<!doctype html>` 之前。同样真实踩过，`verify.mjs` 已加断言。
+3. **`index.html` 保持纯 ASCII 且无 BOM。** 哨兵是字节级匹配，`verify.mjs` 已加断言。注意 Windows PowerShell 的 `Set-Content -Encoding utf8` 会加 BOM，落在 `<!doctype html>` 之前。
 
-4. **`base: './'`**，资源必须相对路径。主题被挂在 `/themes/minimal/dist/` 下，绝对路径会 404。
+4. **资源前缀与页面路径是两件事，不能混。** 服务端（`web/public/public.go`）对它们的处理完全不同：
+
+   - **资源**走 `/themes/:id/*path`，纯静态查找，命中返回文件，**未命中直接 404，不回退 index.html**。
+   - **页面**走 `noRoute`，返回 `dist/index.html`。请求的是 `/`、`/instance/xxx` 这类**站点根下**的路径。
+
+   所以：构建 `base` = `/themes/{short}/dist/`（`short` 从 manifest 读，不要写死），而客户端路由**不能加 `basename`** —— 页面 URL 本来就在站点根下。
+
+   构建时不能用 `./`：浏览器把 `./assets/index-xxx.js` 相对当前 URL 解析成 `/instance/assets/index-xxx.js`，`noRoute` 又把 `index.html` 返回给它，按 MIME 拒绝执行，整页空白。
+
+   开发态 `base` 必须是 `/`：Vite 把入口挂在 `base` 下，若开发态也用 `/themes/{short}/dist/`，地址栏 pathname 就带上这段前缀，React Router 匹配不到任何路由，被 `path="*"` 兜回首页，**详情页永远打不开**。`vite.config.ts` 按 `command === 'build'` 区分。
+
+   这一整类问题极易漏测。踩过两次：
+
+   - `verify.mjs` 最初的断言方向是反的（要求必须相对路径），于是构建、verify、SSR 渲染测试全绿，直到用真实浏览器加载才发现。
+   - `scripts/mock-server.mjs` 最初在 `/themes/{short}/dist/` 前缀下也做了 SPA fallback，而真实服务端那里是 404 —— 测试替身把 bug 藏起来了，`browser-check.mjs` 22/22 全绿却与真实行为不符。
+
+   从首页点进详情页走的是客户端路由，不触发 document 加载，一切正常；只有**直接访问 / 刷新 `/instance/<uuid>`** 才会暴露。断言这类问题只能靠 `scripts/browser-check.mjs`（构建产物）和真实 dev server 两层。
 
 5. **产物文件名不得以 `_` 开头**，Go 的 `embed` 会跳过。`vite.config.ts` 里 `chunkFileNames` 已做处理，`verify.mjs` 兜底检查。
+
+6. **接口返回形状必须对着真实实例核实，不能照文档推断。** 真实实例上验出过六处不符，全部是静默失败（HTTP 200、控制台干净、页面只是空着）：
+
+   | 方法 | 真实返回 |
+   | --- | --- |
+   | `common:getNodes` | **以 uuid 为键的字典**（REST `/api/nodes` 的 `data` 才是数组） |
+   | `common:getNodesLatestStatus` | 同上，uuid 字典 |
+   | `common:getRecords` | `{count, records:{uuid:[…]}, from, to}`，**即便指定 uuid 也包这层信封** |
+   | `public:queryMetrics` 键名 | 带点的命名空间：`cpu.usage`、`memory.used`、`swap.used`、`disk.used`、`load.average`、`net.in.rate`、`net.out.rate`、`net.total.up/down`、`ping.latency_ms`、`ping.loss`。用状态记录的字段名会被拒 `unknown metric key` |
+   | `public:queryMetrics` 返回 | `{series:[{metric_key, entity_id, points:[{time,value,count,tags}]}]}`。用量类给的是**字节**，百分比要自己按总量换算 |
+   | `public:getPingMetricStats` | **聚合统计**（min/max/avg/latest/p50/p99/loss），没有时间序列。延迟曲线要用 `queryMetrics` 的 `ping.latency_ms`，按 `task_id` **字符串**标签拆分 |
+
+   直接病因往往是 `Array.isArray(x)`：字典上恒为 false，于是 `setState` 从不执行。用 `public:listMetricDefinitions` 列真实键名，别硬编码猜测。
+
+7. **`weight` 是升序，服务端不排序节点。** `GetAllClientBasicInfo` 没有 ORDER BY，顺序完全由主题决定，必须和后台拖拽写入的方向一致。依据：同一代码库里探测任务用 `Order("weight ASC").Order("id ASC")`；`admin:orderClients` 原样写入前端传来的 uuid→weight，下标 0 是列表第一个。
+
+8. **国旗必须自托管 SVG，不能渲染 emoji。** `region` 通常是国旗 emoji，但 **Windows 的 Segoe UI Emoji 故意不含国旗字形** —— 区域指示符对在 Windows 上渲染成两个字母方块。也不能用第三方国旗 CDN（泄漏访客 IP、内网裂图）。`npm run flags` 抓 flag-icons 到 `public/flags/`，`RegionFlag` 把 emoji 反解成两位代码再指过去，映射不出来的退回文本。
 
 其他必须遵守但不致命的：
 
@@ -144,8 +177,8 @@ scripts/package.mjs    产出 zip，manifest 在归档根
 | `price` | `-1` 表示免费，`0` 表示未设置 |
 | `cpu_physical_cores` | `0` 表示未知/未上报 |
 | `gpu_name` | 无 GPU 时是字符串 `"None"` |
-| `region` | 通常是国旗 emoji |
-| `weight` | 排序权重，**数值大的在前** |
+| `region` | 通常是国旗 emoji（也可能是两位国家代码，或运营者自填的任意文字） |
+| `weight` | 排序权重，**数值小的在前**（升序） |
 | `traffic_limit_type` | `sum` / `max` / `min` / `up` / `down` 五种算法，决定已用流量怎么算 |
 | `currency` | 默认 `$` |
 
@@ -375,5 +408,9 @@ cp .env.example .env.local   # 填入 VITE_API_TARGET 指向真实 Komari 实例
 npm run dev                   # 端口 5273，/api 与 /themes 都已代理，含 ws
 ```
 
+打开 `http://localhost:5273/` 即可，页面路径和线上一致（`/`、`/instance/xxx`），地址栏不需要带 `/themes/{short}/dist/` 前缀 —— 那个前缀只出现在构建产物的资源引用里（见 §3 约束 4）。
+
 `vite.config.ts` 的 dev proxy 已经把 `/themes` 也代理过去，所以后台的主题设置表单在开发态就能加载到 manifest，不用每次打包。
+
+开发态代理还会把 `Origin` / `Referer` 改写成目标实例。服务端在 CORS 开启时会校验 Origin（`web/security/cors.go`：`origin != "" && allowOrigin == ""` 直接 403），而 `changeOrigin` 只改 Host 头，浏览器发出的 `Origin: http://localhost:5273` 与实例 Host 不符也不在白名单里，`/api/*` 和 `/api/rpc2` 会全部 403。改写之后 `OriginMatchesHost` 即可通过，不必去实例后台加白名单。这只影响本地开发，装到服务端后是同源请求。
 
