@@ -21,9 +21,15 @@ the rest conversationally.
 
 ## Status (update the checkboxes as you complete each item)
 
-- [ ] Fill backend guidelines
-- [ ] Fill frontend guidelines
-- [ ] Add code examples
+- [x] ~~Fill backend guidelines~~ —— **不适用，已删除该层**。本项目是纯浏览器端
+      静态包，服务端是 Komari 自己的 Go 代码，不在本仓库。`trellis init` 按
+      fullstack 模板生成了 `.trellis/spec/backend/`，硬填会让子代理拿到虚构约定。
+- [x] Fill frontend guidelines —— 六个文件全部填写（含 `index.md`）
+- [x] Add code examples —— 每条约定都引用真实文件路径，例如
+      `UsageBar.tsx:19-29` 的告警阈值、`useNodes.ts` 的模块级缓存、
+      `useAppearance.ts:54-63` 的跨标签页同步注释
+
+完成记录见 `.trellis/tasks/09-01-fill-frontend-spec/prd.md`。
 
 ---
 
