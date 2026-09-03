@@ -146,24 +146,30 @@ git push origin HEAD v0.2.0   # 推送触发发布工作流
 
 `npm run bump` 会拒绝在工作区不干净时执行（否则版本变更会和无关改动混在同一个 commit 里），也会拒绝重复的标签。它**不推送** —— 推标签等于真的发一个版本出去，这一步必须显式。
 
-推送后 GitHub Actions 跑完整校验、打包、建 Release，并在说明里给出归档的 SHA256 与可直接粘贴的市场条目。
+推送后 GitHub Actions 跑完整校验、打包、建 Release，并在说明里给出归档的 SHA256。
 
 版本号不是固定的，但**标签必须与 `komari-theme.json` 的 `version` 相等**，工作流第一步就卡这个。归档名由 manifest 派生（`scripts/package.mjs`），两者不一致就会发出一个名字和版本号互相矛盾的包。`npm run bump` 存在的意义就是让这两者不可能对不上。预发布版本把两边都写成 `0.2.0-rc1` 即可。
 
-提交到官方主题市场：向 [`komari-monitor/theme-market`](https://github.com/komari-monitor/theme-market) 的 `v1.json` 提 PR。条目字段要求（服务端校验见 `web/api/admin/theme_market.go`）：
+### 收录进官方主题市场
 
-| 字段 | 要求 |
+只需要做一次。在 [`komari-monitor/theme-market`](https://github.com/komari-monitor/theme-market/issues/new/choose) 开 Issue，选「提交在 GitHub 中开源的主题」，填两项：
+
+| 表单字段 | 填什么 |
 | --- | --- |
-| `name` / `short` / `version` / `author` | 必填。`name`、`author` 可以是字符串或 i18n 对象 |
-| `short` | 只允许 `[A-Za-z0-9_-]`，且不能是 `default` |
-| `url` | 必填，绝对 http(s) 地址。这是市场里唯一的外链位置 —— 没有单独的演示站字段 |
-| `preview` | 可空；填了必须是绝对 http(s) **图片地址**，归档里的 `preview.png` 不顶用 |
-| `download` + `sha256` | 必须同时给或同时不给。**两者齐备才能一键安装**，否则市场里只能跳转仓库 |
-| `sha256` | 归档的 64 位十六进制摘要，可带 `sha256:` 前缀 |
+| GitHub 仓库地址 | 本仓库地址 |
+| 预览图链接 | `https://raw.githubusercontent.com/<owner>/<repo>/<默认分支>/preview.png` |
 
-`sha256` 填错不会在你本地暴露，但会让所有使用者的一键安装失败 —— 用工作流输出的值，别手算。
+**不是提 PR，也不需要手填 version / sha256 / download** —— 目录只存元数据，主题包仍由作者自己托管，那些字段由市场的 Action 从最新 Release 推导。
 
-条目里的 `preview` 与 `download` 都带当次的标签，各版本互不影响：改了截图不会把历史版本的预览图一起改掉。
+预览图地址要指向**分支**而不是标签：目录里每个主题只有一条记录，自动更新只改 version / download / sha256，不改 preview。钉在某个标签上会把预览图永久冻在那一版。
+
+收录之后无需再管：市场每六小时检查一次本仓库的最新 Release，校验根 manifest、`short`、版本与 SHA-256 通过后自动开更新 PR。所以后续发版只要 `npm run bump` + 推标签。
+
+提交前确认三件事：
+
+- 仓库公开，且最新 Release 里有可下载的归档
+- 归档根有 `komari-theme.json`（`npm run package` 里的 `zip-check` 会验）
+- `short` 在目录里唯一，且不是 `default`
 
 ### 发布失败后重试
 

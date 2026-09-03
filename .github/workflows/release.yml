@@ -42,8 +42,7 @@ jobs:
         id: notes
         env:
           TAG: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
-        run: node scripts/release-entry.mjs notes "$TAG" "$REPO" > release-notes.md
+        run: node scripts/release-entry.mjs notes "$TAG" > release-notes.md
 
       - name: 建 Release
         env:
