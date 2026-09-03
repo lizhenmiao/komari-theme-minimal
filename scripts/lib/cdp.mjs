@@ -10,7 +10,7 @@
  * 渲染出来了"，而不是"某个时间预算走完了"。
  */
 
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,10 +45,21 @@ export async function findBrowser() {
 export async function launch(browserPath, port) {
   const profile = await mkdtemp(join(tmpdir(), 'km-cdp-'))
 
-  const child = execFile(browserPath, [
+  /*
+   * 用 spawn 而不是 execFile。execFile 会把子进程的输出全部缓冲在内存里，默认
+   * maxBuffer 只有 1 MB，一超 Node 直接把子进程杀掉 —— Chrome 在 Linux 上
+   * stderr 相当吵，长驻几十秒足够撞上，而表现出来只是「端点没起来」。
+   */
+  const child = spawn(browserPath, [
     '--headless=new',
     '--disable-gpu',
     '--no-sandbox',
+    /*
+     * Chrome 默认在 /dev/shm 里分配共享内存。CI 环境给的 /dev/shm 往往很小，
+     * 用满之后崩在启动阶段，端点永远不出现。改用临时文件绕开。
+     */
+    '--disable-dev-shm-usage',
+    '--disable-software-rasterizer',
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-extensions',
@@ -58,7 +69,35 @@ export async function launch(browserPath, port) {
     `--user-data-dir=${profile}`,
     'about:blank',
   ])
-  child.on('error', () => {})
+
+  /*
+   * 收着 Chrome 自己的输出，并把进程死因记下来。
+   *
+   * 这些信息是启动失败时唯一的线索：缺共享库、共享内存不足、端口被占，症状
+   * 全都是「端点没起来」，只有 stderr 能区分。把它丢掉就等于每次排查都要
+   * 多跑一轮 CI。
+   */
+  let output = ''
+  const collect = (chunk) => {
+    // 只留尾部：真正的报错在最后，而 Chrome 的启动噪音可以很长
+    output = (output + chunk).slice(-4000)
+  }
+  child.stdout.on('data', collect)
+  child.stderr.on('data', collect)
+
+  let death = null
+  child.on('error', (error) => {
+    death = `无法启动浏览器：${error.message}`
+  })
+  child.on('exit', (code, signal) => {
+    death = `浏览器进程提前退出（code=${code} signal=${signal}）`
+  })
+
+  const giveUp = async (reason) => {
+    child.kill()
+    await rm(profile, { recursive: true, force: true }).catch(() => {})
+    return new Error(output ? `${reason}\n--- 浏览器输出 ---\n${output.trim()}` : reason)
+  }
 
   // 等 DevTools 端点起来
   const deadline = Date.now() + 30_000
@@ -73,10 +112,10 @@ export async function launch(browserPath, port) {
     } catch {
       // 还没监听
     }
+    // 进程已经死了就不必等满 30 秒，那只会把真正的原因埋得更深
+    if (death) throw await giveUp(death)
     if (Date.now() > deadline) {
-      child.kill()
-      await rm(profile, { recursive: true, force: true })
-      throw new Error('DevTools 端点没起来')
+      throw await giveUp(`DevTools 端点在 30 秒内没起来（端口 ${port}）`)
     }
     await new Promise((r) => setTimeout(r, 150))
   }
