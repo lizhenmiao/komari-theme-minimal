@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "开发前检查清单与质量检查清单，动手前必读"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "分层规则：lib/ 不许 import React；km-* 类名是校验脚本的锚点，不能随意改名"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件文件结构约定；null 表示无数据而非 0；uPlot 必须整体重建"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "两种数据模式、引用稳定性要求、AbortController 用法"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "引用相等的两条硬要求（React #185）、三级降级链、StrictMode 世代号"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "类型约定，改组件 props 时参照"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "静默失败防范、六层检查、假服务端同构要求"}
+{"file": "design/mockup-console-index.html", "reason": "首页视觉规格，自包含 HTML，逐类名对照实现"}
+{"file": "design/mockup-console-detail.html", "reason": "详情页视觉规格，含环形仪表与曲线区的具体几何参数"}

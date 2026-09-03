@@ -23,7 +23,9 @@ import {
   ratio,
   trafficUsed,
 } from '../lib/format'
-import type { MetricTone } from './UsageBar'
+import { DISABLED_TONE_CLASS, fillToneClass, valueToneClass } from '../lib/tone'
+import { tasksFor } from '../lib/ping'
+import type { MetricTone } from '../lib/tone'
 import type { NodeView, PingTask, ThemeSettings } from '../lib/types'
 
 const STORAGE_KEY = 'km-minimal-columns'
@@ -31,6 +33,7 @@ const EXPIRY_WARN_DAYS = 14
 
 export type ColumnKey =
   | 'name'
+  | 'group'
   | 'spec'
   | 'cpu'
   | 'memory'
@@ -46,6 +49,8 @@ export type ColumnKey =
 
 const ALL_COLUMNS: ColumnKey[] = [
   'name',
+  // 分组紧跟名称：两者都是节点的身份属性。
+  'group',
   'spec',
   'cpu',
   'memory',
@@ -97,32 +102,27 @@ function MetricCell({
   totalText: string
 }) {
   const disabled = percent === null
-  const fill =
-    disabled ? '' : percent >= 90 ? 'km-fill-bad' : percent >= 75 ? 'km-fill-warn' : `km-fill-${tone}`
-  const text =
-    disabled
-      ? 'text-slate-400'
-      : percent >= 90
-        ? 'km-text-bad'
-        : percent >= 75
-          ? 'km-text-warn'
-          : `km-text-${tone}`
+  const text = disabled ? DISABLED_TONE_CLASS : valueToneClass(percent, tone)
 
   return (
-    <div className="w-[120px]">
+    <div className="w-[118px]">
       <div className="flex items-center gap-1.5">
-        <div className="km-track flex-1">
+        {/* 表格里的槽比卡片矮一档，行高才压得住。 */}
+        <div className="km-track h-2 flex-1">
           {!disabled && (
-            <div className={`km-bar ${fill}`} style={{ width: `${Math.min(percent, 100).toFixed(1)}%` }} />
+            <div
+              className={`km-bar ${fillToneClass(tone)}`}
+              style={{ width: `${Math.min(percent, 100).toFixed(1)}%` }}
+            />
           )}
         </div>
-        <span className={`km-num w-8 text-right text-[12px] font-semibold ${text}`}>
+        <span className={`km-num w-9 text-right text-[12px] font-semibold ${text}`}>
           {disabled ? '—' : `${percent.toFixed(0)}%`}
         </span>
       </div>
       <div className="mt-0.5 flex items-baseline justify-between">
         <span className={`km-num text-[12px] ${text}`}>{usedText}</span>
-        <span className="km-num text-[12px] text-slate-400">{totalText}</span>
+        <span className="km-num text-[12px] text-km-faint">{totalText}</span>
       </div>
     </div>
   )
@@ -170,6 +170,7 @@ export default function NodeTable({ nodes, settings, pingTasks, pingValues }: No
   const labels = useMemo<Record<ColumnKey, string>>(
     () => ({
       name: t('summary.nodes'),
+      group: t('node.group'),
       spec: t('detail.hardware'),
       cpu: t('metric.cpu'),
       memory: t('metric.memory'),
@@ -213,23 +214,26 @@ export default function NodeTable({ nodes, settings, pingTasks, pingValues }: No
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 top-11 z-30 w-44 rounded-xl border border-slate-200
-                bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+              className="absolute right-0 top-10 z-30 w-44 rounded-lg border border-km-border2
+                bg-km-tip p-1.5 shadow-[0_10px_30px_rgb(15_23_42/0.12)]
+                dark:shadow-[0_10px_30px_rgb(0_0_0/0.5)]"
             >
               {ALL_COLUMNS.map((key) => (
                 <label
                   key={key}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5
-                    text-[13px] hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5
+                    text-[13px] transition hover:bg-km-panel2"
                 >
                   <input
                     type="checkbox"
-                    className="size-3.5 accent-indigo-500"
+                    className="size-3.5 accent-km-cpu"
                     checked={visible.includes(key)}
                     disabled={key === 'name'}
                     onChange={() => toggle(key)}
                   />
-                  <span className={key === 'name' ? 'text-slate-400' : ''}>{labels[key]}</span>
+                  <span className={key === 'name' ? 'text-km-faint' : 'text-km-text'}>
+                    {labels[key]}
+                  </span>
                 </label>
               ))}
             </div>
@@ -239,19 +243,25 @@ export default function NodeTable({ nodes, settings, pingTasks, pingValues }: No
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead
-            className="border-b km-hair bg-slate-50/70 text-left text-[12px] font-medium
-              text-slate-400 dark:bg-slate-800/40"
-          >
+          {/*
+           * 表头吸顶，横向滚动时列名不跑；底色用 panel2 与行区分，
+           * 否则滚动到表头下方的行会从它背后透出来。
+           */}
+          <thead className="km-section border-b km-hair bg-km-panel2 text-left">
             <tr>
               {columns.map((key, index) => (
-                <th key={key} className={`${index === 0 ? 'px-4' : 'px-2.5'} py-2.5`}>
+                <th
+                  key={key}
+                  className={`sticky top-0 bg-km-panel2 ${
+                    index === 0 ? 'px-4' : 'px-2.5'
+                  } py-2.5 font-semibold`}
+                >
                   {labels[key]}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-km-hair">
             {nodes.map((node) => (
               <TableRow
                 key={node.client.uuid}
@@ -294,8 +304,10 @@ function TableRow({
   // 没有日期时区分「永久」（expired_at 为 null）和「长期」（>= 100 年后）
   const longTerm = isLongTerm(client.expired_at)
 
+  // 只保留适用于本节点的任务，否则没配探测的行会显示一排空药丸。
+  const myTasks = tasksFor(pingTasks, client.uuid)
   const rowPing: Record<number, number | undefined> = {}
-  for (const task of pingTasks) {
+  for (const task of myTasks) {
     rowPing[task.id] = pingValues[`${client.uuid}:${task.id}`]
   }
 
@@ -312,9 +324,15 @@ function TableRow({
             <span className="ml-1 whitespace-nowrap text-[14px] font-medium">{client.name}</span>
           </Link>
         )
+      case 'group':
+        return client.group?.trim() ? (
+          <span className="km-pill km-pill-neutral whitespace-nowrap">{client.group.trim()}</span>
+        ) : (
+          <span className="text-km-faint">—</span>
+        )
       case 'spec':
         return (
-          <span className="km-num whitespace-nowrap text-[12px] text-slate-400">
+          <span className="km-num whitespace-nowrap text-[12px] text-km-faint">
             {client.cpu_cores}C {formatBytes(client.mem_total, true)}{' '}
             {formatBytes(client.disk_total, true)}
           </span>
@@ -396,19 +414,24 @@ function TableRow({
           <div className="km-num whitespace-nowrap text-[12px]">
             <b className="text-[13px] font-semibold">{status ? status.load.toFixed(2) : '—'}</b>
             <br />
-            <span className="text-slate-400">
+            <span className="text-km-faint">
               {status ? `${status.load5.toFixed(2)}/${status.load15.toFixed(2)}` : '—'}
             </span>
           </div>
         )
       case 'ping':
-        return settings.showPing ? (
-          <PingBadges tasks={pingTasks} values={rowPing} compact />
-        ) : null
+        if (!settings.showPing) return null
+        // 这一行没有适用的探测任务，给个占位而不是留空单元格。
+        if (myTasks.length === 0) return <span className="text-km-faint">—</span>
+        return <PingBadges tasks={myTasks} values={rowPing} compact />
       case 'uptime':
         return (
           <span className="km-num whitespace-nowrap text-[12px]">
-            {formatUptime(status?.uptime)}
+            {formatUptime(status?.uptime, {
+              day: t('node.day'),
+              hour: t('node.hour'),
+              minute: t('node.minute'),
+            })}
           </span>
         )
       case 'expiry':
@@ -419,7 +442,7 @@ function TableRow({
             </span>
             <br />
             {left === null ? (
-              <span className="text-slate-400">—</span>
+              <span className="text-km-faint">—</span>
             ) : expired ? (
               <span className="km-text-bad font-semibold">
                 {t('node.expired', { days: -left })}
@@ -427,7 +450,7 @@ function TableRow({
             ) : (
               <span
                 className={
-                  left <= EXPIRY_WARN_DAYS ? 'km-text-warn font-semibold' : 'text-slate-400'
+                  left <= EXPIRY_WARN_DAYS ? 'km-text-warn font-semibold' : 'text-km-faint'
                 }
               >
                 {t('node.remaining', { days: left })}
@@ -441,10 +464,15 @@ function TableRow({
   }
 
   return (
+    /*
+     * 悬停时首格内侧压一条青色轴线，替代整行变色 —— 深色下整行提亮会让
+     * 仪表条的语义色一起变浑。
+     */
     <tr
-      className={`km-ui-table-row transition hover:bg-slate-50 dark:hover:bg-slate-800/40 ${
-        status?.online ? '' : 'opacity-45'
-      }`}
+      className={`km-ui-table-row transition hover:bg-km-panel2
+        [&:hover>td:first-child]:shadow-[inset_2px_0_0_var(--color-km-cpu)] ${
+          status?.online ? '' : 'opacity-45'
+        }`}
     >
       {columns.map((key, index) => (
         <td key={key} className={`${index === 0 ? 'px-4' : 'px-2.5'} py-2.5 align-middle`}>

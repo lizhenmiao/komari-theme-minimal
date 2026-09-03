@@ -16,6 +16,12 @@ import { ROOT, startMock, waitForApi } from './lib/spawn-mock.mjs'
 
 const CDP_PORT = 9412
 
+/*
+ * 入口按钮的 title 取自 i18n。写死中文而不是 import locale 文件：
+ * 这些断言要能抓到「文案被误删」，从同一个源读就永远不会失败。
+ */
+const LABEL = { admin: '管理后台', login: '登录' }
+
 let failures = 0
 let checks = 0
 
@@ -223,7 +229,8 @@ async function main() {
     if (tableInfo.error) {
       check('切换到表格视图', false, tableInfo.error)
     } else {
-      check('列开关列出全部 13 列', tableInfo.totalColumns === 13, `${tableInfo.totalColumns} 列`)
+      // 这个数字绑定 NodeTable.tsx 的 ALL_COLUMNS，加列时两处一起改
+      check('列开关列出全部 14 列', tableInfo.totalColumns === 14, `${tableInfo.totalColumns} 列`)
       check(
         '默认全部勾选',
         tableInfo.checked === tableInfo.totalColumns,
@@ -259,9 +266,225 @@ async function main() {
     check('没有 React 报错文案', !detail.includes('Minified React error'))
     check('没有 NaN', !detail.includes('NaN'))
     check('没有 undefined', !detail.includes('undefined'))
+
+    /*
+     * 后台入口。假服务端默认返回已登录，所以两个页面都该有这个链接。
+     *
+     * 必须是 <a> 而不是 <Link>：/admin 属于 Komari 内置 UI，走客户端路由会被
+     * 本主题的 `path="*"` 拦下来兜回首页。
+     */
+    /*
+     * 身份入口。假服务端默认返回已登录，所以两个页面都该是后台入口。
+     * 未登录形态由 --guest 覆盖，见下面单独的一段。
+     */
+    console.log('\n身份入口')
+    check('首页有身份入口', home.includes('km-auth-entry'))
+    check('详情页也有身份入口', detail.includes('km-auth-entry'))
+    check('已登录时指向后台', home.includes(`title="${LABEL.admin}"`), '缺少后台入口')
+    check('已登录时不显示登录入口', !home.includes(`title="${LABEL.login}"`))
+    check('入口用 <a> 而非客户端路由', home.includes('href="/admin"'))
+
+    /*
+     * 延迟药丸的适用性过滤。
+     *
+     * 运营者可以给每个探测任务指定适用节点（PingTask.clients）。不过滤的话，
+     * 没配探测的节点会显示一排空药丸，把「这台没配」说成「还没测出来」。
+     *
+     * 期望值从固定数据推导：h8 不在任何任务的 clients 里，移动只配了三台。
+     */
+    console.log('\n延迟药丸按适用节点过滤')
+    /*
+     * 先把视图偏好改回卡片。上面的表格测试点过「表格」按钮，而视图选择会持久化
+     * 到 km-minimal-view —— 不重置的话这里渲染出来的是表格，一张卡片都没有，
+     * 下面三条断言会因为「什么都没渲染」而假通过。
+     */
+    await session.evaluate(`(() => {
+      localStorage.setItem('km-minimal-view', 'grid')
+      return true
+    })()`)
+    // km-ui-ping-badges 出现才说明延迟数据已到，见下面的轮询。
+    await session.load(mock.base, {
+      waitFor: (html) => html.includes('km-node-card') && html.includes('km-ui-ping-badges'),
+    })
+
+    const perCard = await session.evaluate(`(async () => {
+      /*
+       * 同时等卡片和药丸。只等药丸不够：这一步是从详情页导航回首页，
+       * 导航尚未完成时卡片一张都没有，采样结果会是空对象，而空对象会让
+       * 「没配探测的节点没有药丸」因为「什么都没渲染」而假通过。
+       */
+      const until = Date.now() + 12000
+      for (;;) {
+        const cards = document.querySelectorAll('.km-node-card').length
+        const badges = document.querySelectorAll('.km-ui-ping-badges').length
+        if (cards > 0 && badges > 0) break
+        if (Date.now() > until) break
+        await new Promise((r) => setTimeout(r, 200))
+      }
+
+      const out = {}
+      for (const card of document.querySelectorAll('.km-node-card')) {
+        const name = card.querySelector('h3')?.innerText?.trim() ?? '?'
+        const group = card.querySelector('.km-ui-ping-badges')
+        out[name] = group ? [...group.children].map((el) => el.getAttribute('title')) : []
+      }
+      return out
+    })()`)
+
+    // 先确认采样到的是完整的一批，否则下面三条都可能因为「还没渲染」而假通过
+    check(
+      '采样到了全部卡片',
+      Object.keys(perCard).length === expectedCards,
+      `${Object.keys(perCard).length} / ${expectedCards}`,
+    )
+
+    check(
+      '未配置探测的节点不显示药丸',
+      (perCard['Hotel 台北'] ?? []).length === 0,
+      `Hotel 台北: ${JSON.stringify(perCard['Hotel 台北'])}`,
+    )
+    check(
+      '配了全部三个任务的节点显示三个药丸',
+      (perCard['Alpha 香港'] ?? []).length === 3,
+      `Alpha 香港: ${JSON.stringify(perCard['Alpha 香港'])}`,
+    )
+    check(
+      '只配了部分任务的节点按任务过滤',
+      (perCard['Delta 法兰克福'] ?? []).length === 2,
+      `Delta 法兰克福: ${JSON.stringify(perCard['Delta 法兰克福'])}`,
+    )
+    /*
+     * 分组筛选。
+     *
+     * 固定数据的分布刻意贴近真实实例：FreeCloud 2、Oracle 3、华为云 1、DGN 1，
+     * 另有一个节点不分组 —— 后者用来验证芯片计数只算有分组的那些。
+     */
+    console.log('\n分组筛选')
+    const groupInfo = await session.evaluate(`(async () => {
+      localStorage.removeItem('km-minimal-group')
+      localStorage.setItem('km-minimal-view', 'grid')
+      location.reload()
+      return true
+    })()`)
+    void groupInfo
+
+    await session.load(mock.base, {
+      waitFor: (html) => html.includes('km-index-groups') && html.includes('km-node-card'),
+    })
+
+    const groups = await session.evaluate(`(() => {
+      const row = document.querySelector('.km-index-groups')
+      if (!row) return { error: '没有分组芯片行' }
+      /*
+       * 名称和计数分开取。innerText 会把两个 <span> 直接拼起来（「Oracle3」），
+       * 靠字符串切分容易在组名以数字结尾时出错。
+       */
+      return {
+        entries: [...row.querySelectorAll('button')].map((b) => {
+          const nodes = [...b.childNodes]
+          const num = b.querySelector('.km-num')
+          return {
+            label: nodes
+              .filter((n) => n !== num)
+              .map((n) => n.textContent ?? '')
+              .join('')
+              .trim(),
+            count: Number(num?.textContent ?? ''),
+          }
+        }),
+        cards: document.querySelectorAll('.km-node-card').length,
+      }
+    })()`)
+
+    if (groups.error) {
+      check('渲染出分组芯片', false, groups.error)
+    } else {
+      const shown = groups.entries.map((e) => `${e.label}=${e.count}`).join(' | ')
+      check('渲染出分组芯片', groups.entries.length > 1, shown)
+      check(
+        '第一个芯片是「全部」并显示总数',
+        groups.entries[0]?.label === '全部' && groups.entries[0]?.count === expectedCards,
+        shown,
+      )
+      const counts = groups.entries.slice(1).map((e) => e.count)
+      check(
+        '芯片按节点数降序',
+        counts.every((n, i) => i === 0 || counts[i - 1] >= n),
+        shown,
+      )
+      check(
+        '未分组的节点不产生芯片',
+        groups.entries.slice(1).every((e) => e.label.length > 0),
+        shown,
+      )
+      check('默认显示全部节点', groups.cards === expectedCards, `${groups.cards} 张`)
+    }
+
+    // 点某个组，卡片数量必须收窄到该组
+    const filtered = await session.evaluate(`(async () => {
+      const row = document.querySelector('.km-index-groups')
+      const target = [...row.querySelectorAll('button')].find((b) => b.innerText.includes('Oracle'))
+      if (!target) return { error: '找不到 Oracle 芯片' }
+      target.click()
+      await new Promise((r) => setTimeout(r, 400))
+      return {
+        cards: document.querySelectorAll('.km-node-card').length,
+        stored: localStorage.getItem('km-minimal-group'),
+      }
+    })()`)
+
+    if (filtered.error) {
+      check('点击分组后筛选生效', false, filtered.error)
+    } else {
+      check('点击分组后筛选生效', filtered.cards === 3, `${filtered.cards} 张，应为 3`)
+      check('选择持久化到 localStorage', filtered.stored === 'Oracle', String(filtered.stored))
+    }
+
+    // 刷新后筛选仍在，且表格视图共用同一个状态
+    await session.load(mock.base, { waitFor: (html) => html.includes('km-node-card') })
+    const persisted = await session.evaluate(`(async () => {
+      const cards = document.querySelectorAll('.km-node-card').length
+      const buttons = [...document.querySelectorAll('button')]
+      const tableBtn = buttons.find((b) => b.innerText.trim() === '表格')
+      tableBtn?.click()
+      await new Promise((r) => setTimeout(r, 400))
+      return { cards, rows: document.querySelectorAll('.km-ui-table-row').length }
+    })()`)
+    check('刷新后筛选保留', persisted.cards === 3, `${persisted.cards} 张`)
+    check('表格视图共用同一筛选', persisted.rows === 3, `${persisted.rows} 行`)
+
+    // 复位，免得影响后续断言
+    await session.evaluate(`(() => {
+      localStorage.removeItem('km-minimal-group')
+      localStorage.setItem('km-minimal-view', 'grid')
+      return true
+    })()`)
   } finally {
     if (session) await session.close()
     mock.stop()
+  }
+
+  /*
+   * 未登录形态。
+   *
+   * 必须单独起一个 --guest 假服务端：只验证「已登录显示后台」的话，判定条件
+   * 写反（或干脆不判断、无条件显示）同样能通过。
+   */
+  console.log('\n未登录形态（--guest）')
+  const guestMock = await startMock(['--guest'])
+  let guestSession = null
+  try {
+    await waitForApi(guestMock.base)
+    guestSession = await launch(browserPath, CDP_PORT + 1)
+    const guestHome = await guestSession.load(guestMock.base, {
+      waitFor: (html) => html.includes('km-auth-entry'),
+    })
+    check('未登录显示登录入口', guestHome.includes(`title="${LABEL.login}"`))
+    check('未登录不显示后台入口', !guestHome.includes(`title="${LABEL.admin}"`))
+    check('登录入口同样指向 /admin', guestHome.includes('href="/admin"'))
+  } finally {
+    if (guestSession) await guestSession.close()
+    guestMock.stop()
   }
 
   console.log(`\n${checks - failures}/${checks} 项通过`)

@@ -12,12 +12,18 @@ import { useSyncExternalStore } from 'react'
 import NodeCard from '../components/NodeCard'
 import NodeTable from '../components/NodeTable'
 import Navbar from '../components/Navbar'
-import { useNodes, useTotals } from '../hooks/useNodes'
+import { SkeletonGrid, SkeletonTable, SkeletonValue } from '../components/Skeleton'
+import { useNodes, useGroups, useTotals } from '../hooks/useNodes'
 import { useThemeSettings } from '../hooks/useThemeSettings'
 import { formatBytes, formatSpeed } from '../lib/format'
+import { authEntryOf } from '../lib/auth'
 import { getState, subscribe } from '../lib/store'
 
 const VIEW_STORAGE_KEY = 'km-minimal-view'
+const GROUP_STORAGE_KEY = 'km-minimal-group'
+
+/** 「全部」不是真实分组名，用空串表示，免得和某个叫「全部」的组撞名。 */
+const ALL_GROUPS = ''
 
 type View = 'grid' | 'table'
 
@@ -30,24 +36,36 @@ function readStoredView(): View | null {
   }
 }
 
+function readStoredGroup(): string {
+  try {
+    return localStorage.getItem(GROUP_STORAGE_KEY) ?? ALL_GROUPS
+  } catch {
+    return ALL_GROUPS
+  }
+}
+
 export default function Index() {
   const { t } = useTranslation()
   const settings = useThemeSettings()
   const nodes = useNodes(settings.featuredNodes)
   const totals = useTotals()
+  const groups = useGroups()
 
   // 两个快照参数用同一个读取函数，原因见 hooks/useNodes.ts 的说明。
   const readPublicInfo = () => getState().publicInfo
   const readLoading = () => getState().loading
   const readPingTasks = () => getState().pingTasks
   const readPingLatest = () => getState().pingLatest
+  const readViewer = () => getState().viewer
 
   const publicInfo = useSyncExternalStore(subscribe, readPublicInfo, readPublicInfo)
   const loading = useSyncExternalStore(subscribe, readLoading, readLoading)
   const allPingTasks = useSyncExternalStore(subscribe, readPingTasks, readPingTasks)
   const pingLatest = useSyncExternalStore(subscribe, readPingLatest, readPingLatest)
+  const viewer = useSyncExternalStore(subscribe, readViewer, readViewer)
 
   const [view, setView] = useState<View | null>(readStoredView)
+  const [group, setGroup] = useState<string>(readStoredGroup)
 
   // 访客没表达偏好之前，用运营者配置的默认值。
   const activeView: View = view ?? settings.defaultView
@@ -60,6 +78,29 @@ export default function Index() {
       // 存不进去也要让本次会话生效。
     }
   }, [])
+
+  const changeGroup = useCallback((next: string) => {
+    setGroup(next)
+    try {
+      localStorage.setItem(GROUP_STORAGE_KEY, next)
+    } catch {
+      // 存不进去也要让本次会话生效。
+    }
+  }, [])
+
+  /*
+   * 选中的组可能已经不存在了（节点被移出或改名）。在派生时兜住而不是用 effect
+   * 纠正 —— effect 里 setState 会多渲染一次，而且 store 更新时机不定容易抖。
+   */
+  const activeGroup = groups.some((entry) => entry.name === group) ? group : ALL_GROUPS
+
+  const visibleNodes = useMemo(
+    () =>
+      activeGroup === ALL_GROUPS
+        ? nodes
+        : nodes.filter((node) => node.client.group?.trim() === activeGroup),
+    [nodes, activeGroup],
+  )
 
   useEffect(() => {
     document.documentElement.classList.add('km-page-index')
@@ -75,6 +116,12 @@ export default function Index() {
 
   const sitename = publicInfo?.sitename || 'Komari'
 
+  /*
+   * 首屏骨架的条件是「还在加载且一个节点都没有」。
+   * 不能只看 loading —— 轮询期间它会反复置位，已有数据时退回骨架会整页闪。
+   */
+  const firstLoad = loading && nodes.length === 0
+
   return (
     <>
       <Navbar
@@ -83,59 +130,111 @@ export default function Index() {
         online={totals.online}
         view={activeView}
         onViewChange={changeView}
+        authEntry={authEntryOf(viewer)}
       />
 
-      <main className="km-main km-page-index mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
+      <main className="km-main km-page-index mx-auto max-w-[1560px] px-3.5 pt-4.5 pb-2 lg:px-5">
+        {/*
+         * overflow-hidden 是必需的：分隔线用子元素的 border 画，不裁切的话
+         * 直角边会露在面板圆角外面。
+         */}
         <section
-          className="km-index-summary km-card mb-4 grid grid-cols-2 divide-slate-100 p-0
-            sm:grid-cols-4 sm:divide-x dark:divide-slate-800"
+          className="km-index-summary km-card mb-3.5 grid grid-cols-2 overflow-hidden
+            sm:grid-cols-4"
         >
-          <div className="px-4 py-3.5">
+          <div className="km-scell">
             <p className="km-label">{t('summary.nodes')}</p>
-            <p className="km-num mt-1 text-2xl leading-tight font-semibold">
-              {totals.online}
-              <span className="text-sm font-normal text-slate-400">/{totals.total}</span>
-            </p>
+            {firstLoad ? (
+              <SkeletonValue />
+            ) : (
+              <p className="km-num mt-1 text-[18px] leading-tight font-[650]">
+                {totals.online}
+                <span className="text-km-faint"> / {totals.total}</span>
+              </p>
+            )}
           </div>
-          <div className="px-4 py-3.5">
+          <div className="km-scell">
             <p className="km-label">{t('summary.speed')}</p>
-            <p className="km-num mt-1 text-[15px] leading-snug font-semibold">
-              <span className="km-text-cpu">&uarr;</span> {formatSpeed(totals.netOut)}
-              <span className="ml-1.5 km-text-quota">&darr;</span> {formatSpeed(totals.netIn)}
-            </p>
+            {firstLoad ? (
+              <SkeletonValue />
+            ) : (
+              <p className="km-num mt-1 text-[15px] leading-snug font-[650]">
+                <span className="km-text-up">&uarr;</span> {formatSpeed(totals.netOut)}
+                <span className="ml-2 km-text-down">&darr;</span> {formatSpeed(totals.netIn)}
+              </p>
+            )}
           </div>
-          <div className="px-4 py-3.5">
+          <div className="km-scell">
             <p className="km-label">{t('summary.traffic')}</p>
-            <p className="km-num mt-1 text-[15px] leading-snug font-semibold">
-              <span className="km-text-cpu">&uarr;</span> {formatBytes(totals.trafficUp)}
-              <span className="ml-1.5 km-text-quota">&darr;</span> {formatBytes(totals.trafficDown)}
-            </p>
+            {firstLoad ? (
+              <SkeletonValue />
+            ) : (
+              <p className="km-num mt-1 text-[15px] leading-snug font-[650]">
+                <span className="km-text-up">&uarr;</span> {formatBytes(totals.trafficUp)}
+                <span className="ml-2 km-text-down">&darr;</span>{' '}
+                {formatBytes(totals.trafficDown)}
+              </p>
+            )}
           </div>
-          <div className="px-4 py-3.5">
+          <div className="km-scell">
             <p className="km-label">{t('summary.load')}</p>
-            <p className="km-num mt-1 text-2xl leading-tight font-semibold">
-              {totals.averageLoad.toFixed(2)}
-            </p>
+            {firstLoad ? (
+              <SkeletonValue />
+            ) : (
+              <p className="km-num mt-1 text-[18px] leading-tight font-[650]">
+                {totals.averageLoad.toFixed(2)}
+              </p>
+            )}
           </div>
         </section>
 
-        {loading && nodes.length === 0 && (
-          <p className="py-16 text-center text-sm text-slate-400">{t('state.loading')}</p>
+        {/*
+         * 分组筛选。用芯片而不是分区块：真实实例上常见「几个组各只有一台」的
+         * 分布，每组一个标题会把页面拉得很长，而芯片不打断网格。
+         *
+         * 所有节点都没分组时整行不渲染，不留一个只有「全部」的空壳。
+         */}
+        {groups.length > 0 && !firstLoad && (
+          <div className="km-index-groups mb-3.5 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              className={activeGroup === ALL_GROUPS ? 'km-seg-on' : 'km-seg-off'}
+              onClick={() => changeGroup(ALL_GROUPS)}
+            >
+              {t('group.all')}
+              <span className="km-num ml-1.5 opacity-60">{nodes.length}</span>
+            </button>
+            {groups.map((entry) => (
+              <button
+                key={entry.name}
+                type="button"
+                className={activeGroup === entry.name ? 'km-seg-on' : 'km-seg-off'}
+                onClick={() => changeGroup(entry.name)}
+              >
+                {entry.name}
+                <span className="km-num ml-1.5 opacity-60">{entry.count}</span>
+              </button>
+            ))}
+          </div>
         )}
+
+        {firstLoad && (activeView === 'grid' ? <SkeletonGrid /> : <SkeletonTable />)}
 
         {!loading && nodes.length === 0 && (
-          <p className="py-16 text-center text-sm text-slate-400">{t('state.empty')}</p>
+          <p className="py-16 text-center text-sm text-km-faint">{t('state.empty')}</p>
         )}
 
-        {nodes.length > 0 &&
+        {visibleNodes.length > 0 &&
           (activeView === 'grid' ? (
-            // 只在 1920px 以上开四列：1536px 时单卡宽度掉到 360px 左右，
-            // 2x2 的指标格子会开始换行。
+            /*
+             * 列数交给 auto-fill 自己算，不枚举断点。min(370px, 100%) 里的 100%
+             * 是给窄于 370px 的视口兜底，否则单列会溢出容器。
+             */
             <section
-              className="km-index-grid grid gap-3 lg:grid-cols-2 2xl:grid-cols-3
-                min-[1920px]:grid-cols-4"
+              className="km-index-grid grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(370px, 100%), 1fr))' }}
             >
-              {nodes.map((node) => {
+              {visibleNodes.map((node) => {
                 const values: Record<number, number | undefined> = {}
                 for (const task of cardTasks) {
                   values[task.id] = pingLatest[`${node.client.uuid}:${task.id}`]
@@ -153,7 +252,7 @@ export default function Index() {
             </section>
           ) : (
             <NodeTable
-              nodes={nodes}
+              nodes={visibleNodes}
               settings={settings}
               pingTasks={cardTasks}
               pingValues={pingLatest}

@@ -36,6 +36,19 @@ export function useNodeStatus(uuid: string): NodeStatus | null {
   return useSyncExternalStore(subscribe, read, read)
 }
 
+/**
+ * 某个节点的 CPU 趋势采样。
+ *
+ * store 里的数组只在该节点数据变化时才换引用，所以这里直接返回它就满足
+ * 快照稳定性；不能在这里 slice 或 map，那样每次读取都是新数组。
+ */
+const EMPTY_TREND: number[] = []
+
+export function useCpuTrend(uuid: string): number[] {
+  const read = () => getState().cpuTrend[uuid] ?? EMPTY_TREND
+  return useSyncExternalStore(subscribe, read, read)
+}
+
 let viewsClients: unknown
 let viewsStatuses: unknown
 let viewsPinned: readonly string[] = []
@@ -77,6 +90,49 @@ function buildViews(pinned: readonly string[]): NodeView[] {
 export function useNodes(pinned: readonly string[] = []): NodeView[] {
   const read = () => buildViews(pinned)
   return useSyncExternalStore(subscribe, read, read)
+}
+
+/** 一个分组及其节点数。 */
+export interface NodeGroup {
+  name: string
+  count: number
+}
+
+let groupsClients: unknown
+let groupsCache: NodeGroup[] = []
+
+/**
+ * 分组清单，按节点数降序、同数按组名。
+ *
+ * 只依赖 `clients` 不依赖 `statuses`：分组是元数据，状态每两秒刷新一次而分组
+ * 几乎不变，跟着 statuses 重算会让芯片行每次轮询都重渲染。
+ *
+ * 计数在筛选之前算，否则选中某组后其他组的数字会全变成 0。
+ */
+function buildGroups(): NodeGroup[] {
+  const { clients } = getState()
+  if (clients === groupsClients) return groupsCache
+
+  const counts = new Map<string, number>()
+  for (const client of clients) {
+    if (client.hidden) continue
+    // 空串是「未分组」，不该出现在芯片里。
+    const name = client.group?.trim()
+    if (!name) continue
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+
+  const groups = [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.name.localeCompare(b.name)))
+
+  groupsClients = clients
+  groupsCache = groups
+  return groups
+}
+
+export function useGroups(): NodeGroup[] {
+  return useSyncExternalStore(subscribe, buildGroups, buildGroups)
 }
 
 let nodeUuid: string | null = null
@@ -180,4 +236,4 @@ function computeTotals(): NodeTotals {
  * 供测试断言引用稳定性用。数据没变时必须返回同一个引用，否则
  * useSyncExternalStore 会无限重渲染。
  */
-export const __snapshotReaders = { buildViews, buildNode, computeTotals }
+export const __snapshotReaders = { buildViews, buildNode, computeTotals, buildGroups }

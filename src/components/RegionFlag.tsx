@@ -62,7 +62,7 @@ export default function RegionFlag({ region, className = '' }: RegionFlagProps) 
   if (!code || failed) {
     return (
       <span
-        className={`km-ui-flag shrink-0 text-[13px] leading-none ${className}`}
+        className={`km-ui-flag shrink-0 text-[12px] leading-none text-km-dim ${className}`}
         title={trimmed}
       >
         {trimmed}
@@ -82,7 +82,12 @@ export default function RegionFlag({ region, className = '' }: RegionFlagProps) 
       loading="lazy"
       decoding="async"
       onError={() => setFailed(true)}
-      className={`km-ui-flag h-[15px] w-[20px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10 dark:ring-white/15 ${className}`}
+      /*
+       * 描边用 box-shadow 而不是 border：border 会挤占 20×15 的内容区，
+       * 让不同宽高比的旗面产生半像素错位。
+       */
+      className={`km-ui-flag block h-[15px] w-[20px] shrink-0 rounded-[2px] object-cover
+        shadow-[0_0_0_1px_rgb(128_140_155/0.35)] ${className}`}
     />
   )
 }

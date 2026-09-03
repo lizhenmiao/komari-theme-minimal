@@ -52,14 +52,14 @@ export function detectOs(os: string): OsKey | null {
   return null
 }
 
-export default function OsIcon({ os, className = 'size-4 shrink-0' }: OsIconProps) {
+export default function OsIcon({ os, className = 'size-[15px] shrink-0' }: OsIconProps) {
   const key = detectOs(os)
 
   if (!key) {
     return (
       <svg
         viewBox="0 0 24 24"
-        className={`${className} text-slate-400`}
+        className={`${className} text-km-faint`}
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"

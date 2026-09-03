@@ -37,7 +37,11 @@ function check(label, got, want) {
 async function loadFormat() {
   await writeFile(
     ENTRY,
-    "export { formatExpiry, daysUntil, isLongTerm, formatBytes, ratio, trafficUsed } from './src/lib/format'\n",
+    [
+      "export { formatExpiry, daysUntil, isLongTerm, formatBytes, ratio, trafficUsed } from './src/lib/format'",
+      "export { taskAppliesTo, tasksFor } from './src/lib/ping'",
+      '',
+    ].join('\n'),
     'utf8',
   )
   const { build } = await import('vite')
@@ -57,7 +61,8 @@ async function loadFormat() {
 }
 
 async function main() {
-  const { formatExpiry, daysUntil, isLongTerm, ratio, trafficUsed } = await loadFormat()
+  const { formatExpiry, daysUntil, isLongTerm, ratio, trafficUsed, taskAppliesTo, tasksFor } =
+    await loadFormat()
 
   /*
    * 「长期」的阈值必须和服务端一致：utils/renewal/renewal.go:48-52 用的是
@@ -107,6 +112,26 @@ async function main() {
   check('min 取较小者', trafficUsed(status, 'min'), 300)
   check('up 只算上行', trafficUsed(status, 'up'), 300)
   check('down 只算下行', trafficUsed(status, 'down'), 700)
+
+  /*
+   * 探测任务的适用性。这一层是 DOM 检查看不见的：那里只能验证「有几个药丸」，
+   * 验证不了空列表和字段缺失这两个边界该怎么算。
+   */
+  console.log('\n探测任务适用性')
+  const task = (clients) => ({ id: 1, name: 'x', interval: 60, type: 'icmp', clients })
+  check('列表含该节点则适用', taskAppliesTo(task(['a1', 'b2']), 'a1'), true)
+  check('列表不含该节点则不适用', taskAppliesTo(task(['a1', 'b2']), 'zz'), false)
+  /*
+   * 空列表和字段缺失都按「适用全部」处理，与服务端 AppliesToClient 相反。
+   * 老版本服务端不下发这个字段，按「不适用」处理会把延迟展示整个关掉。
+   */
+  check('空列表按适用全部处理', taskAppliesTo(task([]), 'a1'), true)
+  check('字段缺失按适用全部处理', taskAppliesTo(task(undefined), 'a1'), true)
+  check(
+    'tasksFor 只留适用的任务',
+    tasksFor([task(['a1']), task(['b2']), task([])], 'a1').length,
+    2,
+  )
 
   console.log(`\n${checks - failures}/${checks} 项通过`)
 }

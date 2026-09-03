@@ -26,8 +26,8 @@ export default function InfoPopover({
       : 'group-hover/pop:visible group-hover/pop:opacity-100'
   const trigger =
     group === 'tip'
-      ? 'inline-grid size-3.5 translate-y-px place-items-center rounded-full bg-slate-200/80 text-[9px] font-bold text-slate-500 transition hover:bg-slate-300 hover:text-slate-700 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200'
-      : 'grid size-4.5 place-items-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
+      ? 'inline-grid size-3.5 translate-y-px place-items-center rounded-full bg-km-track text-[9px] font-bold text-km-dim transition hover:text-km-text'
+      : 'grid size-[18px] place-items-center rounded-full border border-km-border text-[11px] font-semibold text-km-faint transition hover:border-km-border2 hover:text-km-text'
   const offset = group === 'tip' ? 'top-5' : 'top-6'
 
   return (
@@ -36,10 +36,10 @@ export default function InfoPopover({
         ?
       </span>
       <span
-        className={`invisible absolute right-0 ${offset} ${width} z-40 rounded-xl border
-          border-slate-200 bg-white p-3 text-left text-[12px] font-normal normal-case
-          tracking-normal opacity-0 shadow-xl transition duration-150 dark:border-slate-700
-          dark:bg-slate-800 ${visibility}`}
+        className={`invisible absolute right-0 ${offset} ${width} z-40 rounded-lg border
+          border-km-border2 bg-km-tip p-3 text-left text-[12px] font-normal normal-case
+          tracking-normal opacity-0 shadow-[0_10px_30px_rgb(15_23_42/0.12)] transition
+          duration-150 dark:shadow-[0_10px_30px_rgb(0_0_0/0.5)] ${visibility}`}
         role="tooltip"
       >
         {children}
@@ -52,8 +52,8 @@ export default function InfoPopover({
 export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <span className="flex items-baseline justify-between gap-3 py-[2px] text-[12px]">
-      <span className="shrink-0 text-slate-400 dark:text-slate-500">{label}</span>
-      <span className="truncate text-right text-slate-700 dark:text-slate-200">{value}</span>
+      <span className="shrink-0 text-km-faint">{label}</span>
+      <span className="truncate text-right text-km-text">{value}</span>
     </span>
   )
 }

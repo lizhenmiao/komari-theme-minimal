@@ -71,6 +71,7 @@ export async function render() {
     buildViews: __snapshotReaders.buildViews(pinned) === __snapshotReaders.buildViews(pinned),
     buildNode: __snapshotReaders.buildNode(uuid) === __snapshotReaders.buildNode(uuid),
     computeTotals: __snapshotReaders.computeTotals() === __snapshotReaders.computeTotals(),
+    buildGroups: __snapshotReaders.buildGroups() === __snapshotReaders.buildGroups(),
   }
   step('snapshots ' + JSON.stringify(stability))
 
@@ -265,6 +266,7 @@ function assertSnapshots(snapshots) {
   check('useNodes 的读取函数引用稳定', snapshots.buildViews)
   check('useNode 的读取函数引用稳定', snapshots.buildNode)
   check('useTotals 的读取函数引用稳定', snapshots.computeTotals)
+  check('useGroups 的读取函数引用稳定', snapshots.buildGroups)
 }
 
 function assertHome(html, expectedCards) {
@@ -303,8 +305,14 @@ function assertHome(html, expectedCards) {
   check('没有 undefined', !html.includes('undefined'))
   assertNoPlaceholders(html)
 
-  // 绝不占用内置路由。
-  check('没有 /admin 链接', !html.includes('href="/admin"'))
+  /*
+   * 主题不能自己实现 /admin 和 /terminal 这两个路由 —— 它们是 Komari 内置 UI。
+   *
+   * 但可以链接过去：后台入口在已登录时会渲染 `<a href="/admin">`，那是跳转而不是
+   * 占位。所以这里查的是有没有 Route 声明，不是有没有链接。
+   */
+  check('没有声明 /admin 路由', !/path="\/admin/.test(html))
+  check('没有声明 /terminal 路由', !/path="\/terminal/.test(html))
   check('没有 /terminal 链接', !html.includes('href="/terminal"'))
 }
 

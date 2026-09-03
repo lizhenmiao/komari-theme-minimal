@@ -25,6 +25,8 @@ import { fileURLToPath } from 'node:url'
 const args = process.argv.slice(2)
 const noRpc2 = args.includes('--no-rpc2')
 const noMetrics = args.includes('--no-metrics')
+/** 切成未登录访客，用来验证后台入口被隐藏。 */
+const guestMode = args.includes('--guest')
 const port = Number(args.find((a) => /^\d+$/.test(a)) ?? 4928)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const DIST = join(ROOT, 'dist')
@@ -50,42 +52,42 @@ const TB = 1024 ** 4
  */
 const NODES = [
   mkNode({
-    uuid: 'a1', name: 'Alpha 香港', region: '🇭🇰', tags: '生产;边缘',
+    uuid: 'a1', name: 'Alpha 香港', region: '🇭🇰', tags: '生产;边缘', group: 'FreeCloud',
     os: 'Debian 12', arch: 'x86_64', virt: 'KVM', cpu: 'AMD EPYC 7B13',
     cores: 4, mem: 7.76 * GB, swap: 2 * GB, disk: 79.2 * GB,
     limit: 10 * TB, limitType: 'sum', price: 5, expired: '2026-11-03T00:00:00+08:00',
     weight: 3,
   }),
   mkNode({
-    uuid: 'b2', name: 'Bravo 东京', region: 'JP', tags: '生产',
+    uuid: 'b2', name: 'Bravo 东京', region: 'JP', tags: '生产', group: 'FreeCloud',
     os: 'Ubuntu 24.04', arch: 'x86_64', virt: 'KVM',
     cpu: 'Intel Xeon Platinum 8375C', cores: 8, mem: 15.6 * GB, swap: 2 * GB,
     disk: 158 * GB, limit: 0, limitType: 'sum', price: 24, expired: null,
     weight: 0,
   }),
   mkNode({
-    uuid: 'c3', name: 'Charlie 洛杉矶', region: '🇺🇸', tags: '备份;冷存',
+    uuid: 'c3', name: 'Charlie 洛杉矶', region: '🇺🇸', tags: '备份;冷存', group: 'Oracle',
     os: 'Rocky Linux 9', arch: 'x86_64', virt: 'LXC', cpu: 'AMD Ryzen 9 5950X',
     cores: 2, mem: 3.84 * GB, swap: 0, disk: 39.2 * GB,
     limit: 2 * TB, limitType: 'max', price: -1, expired: '2026-09-12T00:00:00+08:00',
     weight: 5, offline: true,
   }),
   mkNode({
-    uuid: 'd4', name: 'Delta 法兰克福', region: 'DE', tags: '边缘',
+    uuid: 'd4', name: 'Delta 法兰克福', region: 'DE', tags: '边缘', group: 'Oracle',
     os: 'Alpine 3.20', arch: 'aarch64', virt: 'Docker', cpu: 'Ampere Altra',
     cores: 2, mem: 1.94 * GB, swap: 512 * MB, disk: 39.2 * GB,
     limit: 2 * TB, limitType: 'sum', price: 3.5, currency: 'EUR',
     expired: '2026-09-04T00:00:00+08:00', weight: 1,
   }),
   mkNode({
-    uuid: 'e5', name: 'Echo 新加坡', region: '🇸🇬', tags: '',
+    uuid: 'e5', name: 'Echo 新加坡', region: '🇸🇬', tags: '', group: 'Oracle',
     os: 'Debian 13', arch: 'x86_64', virt: 'KVM', cpu: 'Intel Xeon E5-2680 v4',
     cores: 1, mem: 492 * MB, swap: 0, disk: 19.6 * GB,
     limit: 1 * TB, limitType: 'down', price: 0, expired: '2030-08-19T00:00:00+08:00',
     weight: 6,
   }),
   mkNode({
-    uuid: 'f6', name: 'Golf 圣何塞', region: 'US', tags: '测试',
+    uuid: 'f6', name: 'Golf 圣何塞', region: 'US', tags: '测试', group: '华为云',
     os: 'CentOS 7', arch: 'x86_64', virt: 'OpenVZ', cpu: 'Intel Xeon E3-1230 v3',
     cores: 1, mem: 256 * MB, swap: 256 * MB, disk: 9.8 * GB,
     limit: 100 * GB, limitType: 'sum', price: 2,
@@ -94,7 +96,8 @@ const NODES = [
   }),
   mkNode({
     // region 是运营者自填的文字，映射不出国家代码，必须退回文本显示。
-    uuid: 'g7', name: 'Foxtrot 首尔', region: '内网', tags: '生产;高配',
+    // 单节点分组：真实实例上有三个这样的组，芯片计数要显示 1
+    uuid: 'g7', name: 'Foxtrot 首尔', region: '内网', tags: '生产;高配', group: 'DGN',
     os: 'Ubuntu 22.04', arch: 'x86_64', virt: 'none',
     cpu: 'AMD Ryzen 9 7950X3D', cores: 32, mem: 128 * GB, swap: 8 * GB,
     disk: 2 * TB, limit: 200 * TB, limitType: 'sum', price: 180,
@@ -104,12 +107,14 @@ const NODES = [
     /*
      * 后台选「长期」时写入的哨兵日期。真实实例上实测是 2225-12-11，
      * 服务端按「超过当前时间 100 年」判定（utils/renewal/renewal.go:48-52），
-     * 所以这里用同一个值。没有这个节点，长期分支完全测不到 —— 之前就是
-     * 这样漏掉的，页面把它显示成 12/11/2225 和「剩 72785 天」。
+     * 所以这里用同一个值。少了这个节点，长期分支就完全没有检查覆盖，
+     * 页面会把它显示成 12/11/2225 和「剩 72785 天」而没人发现。
      */
     /*
      * 名称和 tag 都刻意不含「长期」二字：否则页面上出现这个词有两个可能来源，
      * 「到期显示为长期」这条断言会被名称或 tag 满足，测不到真正的逻辑。
+     *
+     * group 留空：验证部分节点未分组时，芯片的计数只算有分组的那些。
      */
     uuid: 'h8', name: 'Hotel 台北', region: 'TW', tags: '自有',
     os: 'Debian 12', arch: 'x86_64', virt: 'KVM', cpu: 'Intel N100',
@@ -125,7 +130,8 @@ function mkNode(o) {
     name: o.name,
     tags: o.tags,
     region: o.region,
-    group: '',
+    // 空串是「未分组」，运营者可以只给部分节点分组。
+    group: o.group ?? '',
     os: o.os,
     arch: o.arch,
     virtualization: o.virt,
@@ -154,10 +160,19 @@ function mkNode(o) {
   }
 }
 
+/**
+ * 探测任务。`clients` 是适用节点的 uuid 列表，运营者可以只给部分节点配探测。
+ *
+ * h8 刻意不出现在任何任务里：没有这个样本，「未配置探测的节点不显示药丸」
+ * 这条分支就没有检查覆盖，而它正是过滤逻辑缺失时会出问题的形态。
+ */
+const PING_CLIENTS = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6', 'g7']
+
 const PING_TASKS = [
-  { id: 1, name: '电信', interval: 60, type: 'icmp' },
-  { id: 2, name: '联通', interval: 60, type: 'icmp' },
-  { id: 3, name: '移动', interval: 60, type: 'icmp' },
+  { id: 1, name: '电信', interval: 60, type: 'icmp', clients: PING_CLIENTS },
+  { id: 2, name: '联通', interval: 60, type: 'icmp', clients: PING_CLIENTS },
+  // 移动只配了一部分节点，用来验证逐任务过滤而不是「有没有配探测」的一刀切
+  { id: 3, name: '移动', interval: 60, type: 'icmp', clients: ['a1', 'b2', 'c3'] },
 ]
 
 const THEME_SETTINGS = {
@@ -291,9 +306,8 @@ const METRIC_VALUE = {
 /**
  * queryMetrics 的返回：每个「实体 × 指标」一条序列，点是 {time,value,count}。
  *
- * 这不是扁平的记录数组。之前这里返的是自造的 MetricRecord 数组
- * （带 traffic_up/traffic_down 字段），真实实例根本没有那个形状 ——
- * 客户端照着假服务端写，在真机上一条曲线都画不出来。
+ * 不是扁平的记录数组。假服务端一旦在这里编一个更方便的形状，客户端就会照着
+ * 它写，然后在真实实例上一条曲线都画不出来。
  */
 function metricSeries(uuids, metricKeys, hours, maxPoints) {
   const points = Math.min(maxPoints, Math.max(30, Math.round(hours * 30)))
@@ -479,6 +493,7 @@ const RPC_METHODS = [
   'common:getRecords',
   'public:getPublicPingTasks',
   'public:getPingMetricStats',
+  'public:getMe',
   ...(noMetrics ? [] : ['public:queryMetrics', 'public:listMetricDefinitions']),
 ]
 
@@ -496,9 +511,9 @@ function handleRpc(method, params = {}) {
      * 见 web/rpc/jsonrpc/common.go 的 getNodes：
      *   「返回以 uuid 为键的字典（每个 value 自身也包含 uuid 字段）」
      *
-     * 注意和 REST 的 /api/nodes 不一样，那个信封里的 data 是数组。
-     * 这里之前照 REST 返数组，于是客户端的 Array.isArray 判断在假服务端
-     * 恒真、在真实实例恒假 —— 真机上一个节点都出不来，四层检查全绿。
+     * 注意和 REST 的 /api/nodes 不一样，那个信封里的 data 是数组。若这里照
+     * REST 返数组，客户端的 Array.isArray 判断会在假服务端恒真、在真实实例
+     * 恒假 —— 真机上一个节点都出不来，而各层检查全绿。
      */
     case 'common:getNodes':
       return Object.fromEntries(publicNodes().map((node) => [node.uuid, node]))
@@ -508,8 +523,8 @@ function handleRpc(method, params = {}) {
       return publicInfo()
     /*
      * 即便指定了 uuid 也要包一层信封 —— 真实实例就是这样返的：
-     * `{ count, records: { [uuid]: [...] }, from, to }`。
-     * 之前这里指定 uuid 时直接返数组，客户端的信封剥离逻辑一直没被测到。
+     * `{ count, records: { [uuid]: [...] }, from, to }`。直接返数组的话，
+     * 客户端的信封剥离逻辑就没有任何一层检查覆盖得到。
      */
     case 'common:getRecords': {
       const hours = Number(params.hours ?? 4)
@@ -540,7 +555,7 @@ function handleRpc(method, params = {}) {
       /*
        * 键名不认就报错，和真实实例一致（`unknown metric key: cpu`）。
        * 静默返空会把「键名写错」伪装成「这段时间没数据」，客户端拿不到任何
-       * 信号 —— 之前假服务端不管传什么键都给数据，于是键名全写错也测不出来。
+       * 信号；不管传什么键都给数据的话，键名全写错也不会有检查发现。
        */
       const known = new Set(METRIC_DEFS.map((d) => d.name))
       const unknown = requested.filter((key) => !known.has(key))
@@ -554,6 +569,8 @@ function handleRpc(method, params = {}) {
       const max = Number(params.max_points ?? 500)
       return metricSeries(ids.map(String), keys, hours, max)
     }
+    case 'public:getMe':
+      return viewer()
     case 'public:getPublicPingTasks':
       return PING_TASKS
     /*
@@ -588,6 +605,25 @@ function publicInfo() {
     private_site: false,
     theme: 'minimal',
     theme_settings: THEME_SETTINGS,
+  }
+}
+
+/**
+ * 当前访客。默认已登录，这样后台入口这条分支才有检查覆盖；
+ * 传 --guest 切成未登录，用来验证入口确实被隐藏。
+ *
+ * 真实服务端未登录时返回 `{ username: 'Guest', logged_in: false }` 而不是 401
+ * （web/rpc/jsonrpc/public.go 的 publicGetMe），这里照做。
+ */
+function viewer() {
+  if (guestMode) return { username: 'Guest', logged_in: false }
+  return {
+    username: 'admin',
+    logged_in: true,
+    uuid: '00000000-0000-0000-0000-000000000001',
+    sso_type: '',
+    sso_id: '',
+    '2fa_enabled': false,
   }
 }
 
@@ -733,6 +769,7 @@ const server = createServer(async (req, res) => {
   if (path === '/api/public') return sendEnvelope(res, publicInfo())
   if (path === '/api/nodes') return sendEnvelope(res, publicNodes())
   if (path === '/api/task/ping') return sendEnvelope(res, PING_TASKS)
+  if (path === '/api/me') return sendEnvelope(res, viewer())
 
   if (path === '/api/records/load') {
     const uuid = url.searchParams.get('uuid') ?? NODES[0].uuid
@@ -780,10 +817,11 @@ const server = createServer(async (req, res) => {
 
   /*
    * /themes/:id/*path 是纯静态查找：命中返回文件，未命中 404。
-   * 这里绝不能回退到 index.html —— 真实服务端（web/public/public.go
-   * 的 /themes/:id/*path 路由）就是直接 404。之前这里做了 fallback，
-   * 结果 /themes/minimal/dist/instance/a1 在假服务端能出页面、在真实
-   * 实例上却是 404，等于把 bug 藏起来了。
+   *
+   * 绝不能在这里回退到 index.html —— 真实服务端（web/public/public.go 的
+   * /themes/:id/*path 路由）就是直接 404。一旦加了 fallback，
+   * /themes/minimal/dist/instance/a1 会在假服务端出页面、在真实实例上 404，
+   * 等于把 bug 藏进测试替身里。
    */
   if (path.startsWith(THEME_PREFIX)) {
     if (await sendFile(path.slice(THEME_PREFIX.length))) return

@@ -47,8 +47,8 @@ export default function PingBadges({ tasks, values, compact = false }: PingBadge
 
         return (
           <span key={task.id} className={`km-pill ${tone}`} title={task.name}>
-            <span className="opacity-60">{label}</span>
-            <span className="km-num text-[13px] font-semibold">
+            <span className="text-km-faint">{label}</span>
+            <span className="km-num text-[12.5px] font-semibold">
               {missing ? '—' : lost ? t('metric.timeout') : Math.round(value)}
             </span>
           </span>

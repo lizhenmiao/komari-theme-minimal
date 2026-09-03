@@ -18,6 +18,7 @@ import type {
   NodeStatus,
   PingTask,
   PublicInfo,
+  Viewer,
 } from './types'
 
 const DEFAULT_INTERVAL_MS = 2000
@@ -108,7 +109,7 @@ export async function startTransport(): Promise<void> {
 
   document.addEventListener('visibilitychange', onVisibilityChange)
 
-  await Promise.all([loadPublicInfo(), loadMetadata(), loadPingTasks()])
+  await Promise.all([loadPublicInfo(), loadMetadata(), loadPingTasks(), loadViewer()])
   if (superseded()) return
 
   await pollStatuses()
@@ -198,8 +199,8 @@ async function pollPing(): Promise<void> {
      * 带 min/max/avg/latest/p50/p99/loss（见 web/rpc/jsonrpc/public.metric.go
      * 的 publicPingMetricTaskStats）。卡片上要的最新值直接取 `latest`。
      *
-     * 之前这里把它当成 PingRecord[] 处理，于是在真实实例上一条都取不到，
-     * 三网延迟药丸永远显示 —— 而且是静默的，这个方法本身返回 200。
+     * 当成 PingRecord[] 解析会一条都取不到，而且是静默的 —— 这个方法本身
+     * 返回 200，只是数组为空，页面上药丸永远显示占位符。
      */
     const payload = await rpc.call<unknown>(METHODS.pingStats, {
       task_ids: pingTasks.map((task) => task.id),
@@ -215,8 +216,16 @@ async function pollPing(): Promise<void> {
       const key = `${entry.entity_id}:${entry.task_id}`
       if (typeof entry.latest === 'number') {
         latest[key] = entry.latest
-      } else if (entry.loss === 1) {
-        // 全丢包时没有 latest。用 -1 表达"探测丢失"，和采样里的约定一致。
+        continue
+      }
+      /*
+       * `latest` 是指针字段，窗口内没有有效采样时整个不出现。
+       *
+       * 这种情况必须写成 -1（探测丢失），不能跳过：跳过意味着键不存在，
+       * 界面显示「暂无数据」，把「探测不通」说成了「还没测」。丢包率不必
+       * 恰好等于 1 —— 只要没有任何有效读数，结论就是这条线路当前不可达。
+       */
+      if (entry.total !== undefined && entry.total > 0) {
         latest[key] = -1
       }
     }
@@ -234,6 +243,8 @@ interface PingTaskStats {
   task_id?: string | number
   latest?: number
   loss?: number
+  /** 窗口内的采样总数。为 0 说明这个任务在这段时间根本没跑。 */
+  total?: number
 }
 
 function extractPingStats(payload: unknown): PingTaskStats[] {
@@ -258,6 +269,30 @@ async function loadPublicInfo(): Promise<void> {
   } catch (error) {
     // 非致命：拿不到就用代码里的默认值渲染。
     reportError(error, 'public info')
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 访客身份                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 问一次当前访客是谁，用来决定要不要显示后台入口。
+ *
+ * 这个接口未登录时返回 `{ username: 'Guest', logged_in: false }` 而不是 401，
+ * 所以请求失败只说明接口不可用。此时保持 viewer 为 null（等于不显示入口），
+ * 不能当作「未登录」写进 store —— 那会把「问不到」和「确认没登录」混为一谈。
+ */
+async function loadViewer(): Promise<void> {
+  try {
+    const viewer = capabilities.me && rpc
+      ? await rpc.call<Viewer>(METHODS.me)
+      : await request<Viewer>('/api/me')
+    if (viewer && typeof viewer.logged_in === 'boolean') {
+      setState({ viewer })
+    }
+  } catch {
+    // 老版本服务端可能没有这个端点，静默跳过：没有后台入口不影响看监控。
   }
 }
 

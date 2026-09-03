@@ -41,15 +41,27 @@ export function ratio(used: number, total: number): number | null {
   return Math.min(Math.max((used / total) * 100, 0), 100)
 }
 
-/** 在线时长，天不足则退到小时，小时不足则退到分钟。 */
-export function formatUptime(seconds: number | undefined): string {
+/** 在线时长的单位后缀。由调用方从 i18n 取，格式化本身不依赖 React。 */
+export interface UptimeUnits {
+  day: string
+  hour: string
+  minute: string
+}
+
+/**
+ * 在线时长，天不足则退到小时，小时不足则退到分钟。
+ *
+ * 单位由调用方传入而不是写死 `d`/`h`/`m`：中文里「12d 3h」读起来别扭，
+ * 而这个函数在 lib 层，不能自己调 i18n。
+ */
+export function formatUptime(seconds: number | undefined, units: UptimeUnits): string {
   if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return '—'
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) return `${days}d ${hours}h`
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m`
+  if (days > 0) return `${days} ${units.day} ${hours} ${units.hour}`
+  if (hours > 0) return `${hours} ${units.hour} ${minutes} ${units.minute}`
+  return `${minutes} ${units.minute}`
 }
 
 /**

@@ -13,6 +13,66 @@
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * 配色令牌。这里定义的每个 --color-* 都会被 Tailwind 生成对应工具类
+ * （bg-km-panel、text-km-cpu、border-km-border），组件里只用工具类，
+ * 不写具体色值 —— 换配色只改这一处，不必逐个组件搜替换。
+ *
+ * 深色值在下面的 .dark 块里覆盖同名变量，所以工具类本身不需要 dark: 前缀。
+ */
+@theme {
+  --color-km-bg: #f3f5f8;
+  --color-km-panel: #ffffff;
+  --color-km-panel2: #f4f6f9;
+  --color-km-border: #dfe3e9;
+  --color-km-border2: #c9cfd8;
+  /* 面板内部的分组分隔线。比外框略深一点，分组边界才看得出来。 */
+  --color-km-hair: #dddddd;
+  --color-km-text: #1d2632;
+  --color-km-dim: #5d6a78;
+  --color-km-faint: #8b96a3;
+  --color-km-track: #e8ebf0;
+  --color-km-tip: #ffffff;
+
+  --color-km-cpu: #0891b2;
+  --color-km-mem: #c026d3;
+  --color-km-disk: #d97706;
+  --color-km-swap: #65a30d;
+  --color-km-quota: #0284c7;
+  --color-km-up: #0891b2;
+  --color-km-down: #6366f1;
+  --color-km-ok: #059669;
+  --color-km-warn: #ea580c;
+  --color-km-bad: #e11d48;
+
+  --font-km-mono: ui-monospace, 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace;
+}
+
+.dark {
+  --color-km-bg: #0b0d10;
+  --color-km-panel: #12151a;
+  --color-km-panel2: #171b21;
+  --color-km-border: #22262d;
+  --color-km-border2: #31363f;
+  --color-km-hair: #1a1e24;
+  --color-km-text: #dce4ee;
+  --color-km-dim: #93a1b1;
+  --color-km-faint: #5c6a79;
+  --color-km-track: #1b1f26;
+  --color-km-tip: #161a20;
+
+  --color-km-cpu: #22d3ee;
+  --color-km-mem: #e879f9;
+  --color-km-disk: #fbbf24;
+  --color-km-swap: #a3e635;
+  --color-km-quota: #38bdf8;
+  --color-km-up: #22d3ee;
+  --color-km-down: #818cf8;
+  --color-km-ok: #34d399;
+  --color-km-warn: #fb923c;
+  --color-km-bad: #fb7185;
+}
+
 :root {
   color-scheme: light;
 }
@@ -22,144 +82,212 @@
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-km-bg text-km-text antialiased;
+  font:
+    14px / 1.5 system-ui,
+    'Segoe UI',
+    'Microsoft YaHei',
+    sans-serif;
 }
 
 @layer components {
-  /* 半透明，让背景光带透上来。 */
+  /* 硬边框面板，不带阴影；阴影只留给悬停和浮层，用来表达层级。 */
   .km-card {
-    @apply rounded-xl border border-white/70 bg-white/75 shadow-[0_1px_2px_rgb(15_23_42/0.04)]
-      backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/70;
+    @apply rounded-[10px] border border-km-border bg-km-panel;
   }
 
-  /* 只有可点击的卡片才有悬停反馈。 */
   .km-card-link {
-    @apply cursor-pointer transition duration-150 hover:border-slate-300
-      hover:shadow-[0_4px_16px_rgb(15_23_42/0.08)] dark:hover:border-slate-700;
+    @apply cursor-pointer transition duration-150 hover:-translate-y-px hover:border-km-border2
+      hover:shadow-[0_6px_20px_rgb(15_23_42/0.07)] dark:hover:shadow-[0_6px_20px_rgb(0_0_0/0.45)];
   }
 
   .km-label {
-    @apply text-[12px] font-medium text-slate-400 dark:text-slate-500;
+    @apply text-[12px] font-medium text-km-dim;
   }
 
-  /* 指标组上方的小标题。 */
+  /* 区块小标题：小号、大写、宽字距。 */
   .km-section {
-    @apply text-[11px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500;
+    @apply text-[10px] font-semibold tracking-[0.14em] text-km-faint uppercase;
   }
 
+  /* 等宽 + 定宽数字，避免数值跳动时左右横移。 */
   .km-num {
-    @apply font-mono tabular-nums;
+    @apply font-km-mono tabular-nums;
   }
 
   .km-chip {
-    @apply rounded px-1.5 py-0.5 text-[12px] font-medium leading-[1.4];
+    @apply rounded border border-km-border px-1.5 py-px text-[11px] leading-[1.5];
   }
 
   .km-pill {
-    @apply inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium
-      leading-[1.5];
+    @apply inline-flex items-baseline gap-1 rounded-[5px] border border-km-border2 px-1.5 py-px
+      text-[11px] leading-[1.5];
   }
 
-  .km-track {
-    @apply h-[6px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800;
-  }
-
-  .km-bar {
-    @apply h-full rounded-full transition-[width] duration-500;
-  }
-
+  /*
+   * 内部分隔线与面板外框分开取值。深色下外框已经很淡，分隔线要再收一档，
+   * 否则一块面板看起来像被切成好几块。
+   */
   .km-hair {
-    @apply border-slate-100 dark:border-slate-800;
+    @apply border-km-hair;
   }
 
   .km-seg {
-    @apply flex items-center gap-0.5 rounded-lg bg-slate-200/70 p-0.5 dark:bg-slate-800;
+    @apply inline-flex items-center gap-0.5 rounded-lg border border-km-border p-0.5;
   }
 
+  /* 激活态反白：底色用正文色，文字用背景色。 */
   .km-seg-on {
-    @apply rounded-md bg-white px-3 py-1 text-[13px] font-medium text-slate-800 shadow-sm
-      dark:bg-slate-700 dark:text-slate-100;
+    @apply rounded-md bg-km-text px-2.5 py-1 text-[12px] font-medium text-km-bg;
   }
 
   .km-seg-off {
-    @apply rounded-md px-3 py-1 text-[13px] font-medium text-slate-500 hover:text-slate-700
-      dark:hover:text-slate-300;
+    @apply rounded-md px-2.5 py-1 text-[12px] font-medium text-km-dim transition
+      hover:bg-km-panel2 hover:text-km-text;
   }
 
+  /* 静态时只有图标本身，边框和底色悬停才浮出来。 */
   .km-iconbtn {
-    @apply grid size-9 place-items-center rounded-lg text-slate-500 transition
-      hover:bg-slate-200/70 hover:text-slate-900 dark:hover:bg-slate-800
-      dark:hover:text-slate-100;
+    @apply grid size-8 place-items-center rounded-lg border border-transparent text-km-dim
+      transition hover:border-km-border2 hover:bg-km-panel2 hover:text-km-text;
+  }
+
+  /*
+   * 深色下不用正文色反白。#dce4ee 当底色偏灰，压成接近纯白的冷色更像终端里的
+   * 选中态，也和光晕背景拉开对比。
+   */
+  :is(.dark) .km-seg-on {
+    @apply bg-[#e6edf5] text-[#0a0d12];
+  }
+
+  /*
+   * 汇总条单格。分隔线画在格子自己身上，父级 overflow-hidden 负责裁掉圆角外的部分。
+   * 两列时第二行才需要上边框、偶数列才需要左边框；四列时全在一行，只留左边框。
+   */
+  .km-scell {
+    @apply border-km-hair px-5 py-4 [&:nth-child(even)]:border-l
+      [&:nth-child(n+3)]:border-t sm:border-t-0 sm:border-l sm:first:border-l-0;
+  }
+
+  /*
+   * 骨架块。底色用仪表条的槽色，深浅两套配色都协调，不必单独定义变量。
+   * 呼吸动画表达「正在加载」；静止的灰块容易被误读成渲染坏了。
+   */
+  .km-skeleton {
+    @apply animate-pulse rounded bg-km-track;
+  }
+
+  /* 汇总条的标签与数值。数值用 tabular-nums，轮询刷新时宽度不跳。 */
+  .km-slb {
+    @apply text-[10px] font-semibold tracking-[0.14em] text-km-faint uppercase;
+  }
+
+  .km-sval {
+    @apply mt-1 font-mono text-[18px] font-semibold tabular-nums;
   }
 }
 
 /*
- * 逐指标配色。每个指标占一个色系，扫一眼就知道哪条是哪条；不论本来是什么颜色，
- * 超过 75% 转橙、超过 90% 转红。
+ * LED 分段仪表条。槽是实体背景，填充是子元素，分段靠 mask 抠洞：
+ * 5px 实体 + 2px 缺口、7px 一个周期。mask 以填充元素自身左边缘为起点，
+ * 填充从左生长，所以格子位置不随宽度变化而抖动。
+ */
+@layer components {
+  .km-track {
+    @apply h-[10px] overflow-hidden rounded-[3px] bg-km-track;
+  }
+
+  .km-bar {
+    @apply h-full transition-[width] duration-500;
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+    mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+  }
+}
+
+/*
+ * 逐指标配色，每个指标占一个色系，扫一眼就知道哪条是哪条。
+ *
+ * 告警只改数值文字的颜色，不改条形颜色：四条仪表条颜色各异，全变红会丢掉
+ * 「哪条是哪个指标」的辨识度，而文字变色已经足够示警。
  */
 @layer components {
   .km-fill-cpu {
-    @apply bg-gradient-to-r from-indigo-400 to-indigo-500;
+    @apply bg-km-cpu;
   }
   .km-fill-mem {
-    @apply bg-gradient-to-r from-violet-400 to-violet-500;
+    @apply bg-km-mem;
   }
   .km-fill-disk {
-    @apply bg-gradient-to-r from-amber-400 to-amber-500;
+    @apply bg-km-disk;
   }
   .km-fill-swap {
-    @apply bg-gradient-to-r from-teal-400 to-teal-500;
+    @apply bg-km-swap;
   }
   .km-fill-quota {
-    @apply bg-gradient-to-r from-sky-400 to-sky-500;
+    @apply bg-km-quota;
   }
   .km-fill-warn {
-    @apply bg-gradient-to-r from-amber-400 to-orange-500;
+    @apply bg-km-warn;
   }
   .km-fill-bad {
-    @apply bg-gradient-to-r from-rose-400 to-rose-500;
+    @apply bg-km-bad;
   }
 
   .km-text-cpu {
-    @apply text-indigo-500 dark:text-indigo-400;
+    @apply text-km-cpu;
   }
   .km-text-mem {
-    @apply text-violet-500 dark:text-violet-400;
+    @apply text-km-mem;
   }
   .km-text-disk {
-    @apply text-amber-600 dark:text-amber-400;
+    @apply text-km-disk;
   }
   .km-text-swap {
-    @apply text-teal-600 dark:text-teal-400;
+    @apply text-km-swap;
   }
   .km-text-quota {
-    @apply text-sky-600 dark:text-sky-400;
+    @apply text-km-quota;
+  }
+  /* 上下行固定成一对青/靛，方向靠颜色区分，不靠读箭头。 */
+  .km-text-up {
+    @apply text-km-up;
+  }
+  .km-text-down {
+    @apply text-km-down;
   }
   .km-text-warn {
-    @apply text-orange-500 dark:text-orange-400;
+    @apply text-km-warn;
   }
   .km-text-bad {
-    @apply text-rose-500 dark:text-rose-400;
+    @apply text-km-bad;
   }
 
-  /* 延迟药丸的底色。 */
+  /*
+   * 延迟药丸。边框用 color-mix 把语义色调淡，比额外定义一组浅色变量更省，
+   * 也保证边框永远跟着数值色走。
+   */
   .km-pill-cpu {
-    @apply bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400;
+    border-color: color-mix(in srgb, var(--color-km-cpu) 40%, transparent);
+    @apply text-km-cpu;
   }
   .km-pill-mem {
-    @apply bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400;
+    border-color: color-mix(in srgb, var(--color-km-mem) 40%, transparent);
+    @apply text-km-mem;
   }
   .km-pill-swap {
-    @apply bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400;
+    border-color: color-mix(in srgb, var(--color-km-swap) 40%, transparent);
+    @apply text-km-swap;
   }
   .km-pill-warn {
-    @apply bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400;
+    border-color: color-mix(in srgb, var(--color-km-warn) 45%, transparent);
+    @apply text-km-warn;
   }
   .km-pill-bad {
-    @apply bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400;
+    border-color: color-mix(in srgb, var(--color-km-bad) 45%, transparent);
+    @apply text-km-bad;
   }
   .km-pill-neutral {
-    @apply bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+    @apply text-km-dim;
   }
 }
 
@@ -172,10 +300,6 @@ body {
     @apply relative inline-block size-2 shrink-0 rounded-full;
   }
 
-  .km-dot-live {
-    animation: km-breathe 2.4s ease-in-out infinite;
-  }
-
   .km-dot-live::after {
     content: '';
     @apply absolute inset-0 rounded-full;
@@ -184,87 +308,86 @@ body {
   }
 }
 
-@keyframes km-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(0.86);
-  }
-}
-
 @keyframes km-ripple {
   0% {
     transform: scale(1);
-    opacity: 0.55;
+    opacity: 0.5;
   }
-  70%,
+  75%,
   100% {
-    transform: scale(3.2);
+    transform: scale(3);
     opacity: 0;
   }
 }
 
 /*
- * 装饰背景：顶部一条柔和光带 + 向下淡出的网格线。
- * fixed 且不接收事件，既不随页面滚动，也不吞掉点击。
+ * 装饰背景：两团缓慢飘移的光晕。fixed 且不接收事件，既不随页面滚动，
+ * 也不吞掉点击。只做 transform 动画，不触发重排。
  */
 @layer components {
   .km-bg {
     @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden;
+    background: linear-gradient(180deg, #f3f5f8, #eceff4);
   }
 
-  .km-bg-aurora {
-    @apply absolute top-[-34vh] left-1/2 h-[58vh] w-[150vw] -translate-x-1/2 opacity-[0.22]
-      blur-[70px] dark:opacity-[0.16];
-    background: linear-gradient(
-      100deg,
-      transparent 8%,
-      #6366f1 26%,
-      #a855f7 44%,
-      #14b8a6 62%,
-      transparent 88%
-    );
-    animation: km-sway 28s ease-in-out infinite;
+  .dark .km-bg {
+    background: linear-gradient(180deg, #0e1015, #0a0c10);
   }
 
-  .km-bg-grid {
-    @apply absolute inset-0 text-slate-400/20 dark:text-slate-500/10;
-    background-image:
-      linear-gradient(to right, currentColor 1px, transparent 1px),
-      linear-gradient(to bottom, currentColor 1px, transparent 1px);
-    background-size: 34px 34px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
-    mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+  .km-blob {
+    @apply absolute block size-[70vmax] rounded-full blur-[80px];
+  }
+
+  .km-blob-a {
+    @apply -top-[18vmax] -left-[12vmax];
+    background: rgb(59 130 246 / 0.09);
+    animation: km-drift-a 34s ease-in-out infinite alternate;
+  }
+
+  .dark .km-blob-a {
+    background: rgb(59 130 246 / 0.16);
+  }
+
+  .km-blob-b {
+    @apply -right-[16vmax] -bottom-[22vmax];
+    background: rgb(99 102 241 / 0.07);
+    animation: km-drift-b 44s ease-in-out infinite alternate;
+  }
+
+  .dark .km-blob-b {
+    background: rgb(99 102 241 / 0.11);
   }
 }
 
-@keyframes km-sway {
-  0%,
-  100% {
-    transform: translate(-50%, 0);
+@keyframes km-drift-a {
+  to {
+    transform: translate(6vmax, 4vmax);
   }
-  50% {
-    transform: translate(-46%, 2.5vh);
+}
+
+@keyframes km-drift-b {
+  to {
+    transform: translate(-5vmax, -3vmax);
   }
 }
 
 /* 尊重系统的「减少动态效果」：停掉动画，但每种状态仍然可辨认。 */
 @media (prefers-reduced-motion: reduce) {
-  .km-bg-aurora {
-    animation: none;
-  }
-  .km-dot-live {
+  .km-blob-a,
+  .km-blob-b {
     animation: none;
   }
   .km-dot-live::after {
     animation: none;
     opacity: 0.25;
-    transform: scale(2);
+    transform: scale(1.8);
   }
   .km-bar {
     transition: none;
+  }
+  /* 骨架保持静止的灰块，仍然表达出「这里将来有内容」。 */
+  .km-skeleton {
+    animation: none;
   }
 }
 
@@ -276,4 +399,33 @@ body {
 
 .u-legend {
   display: none !important;
+}
+
+/* 十字准线读数浮层。绝对定位在绘图区内，不接收事件以免抢走光标。 */
+@layer components {
+  .km-chart-tip {
+    @apply pointer-events-none absolute top-1.5 z-30 hidden min-w-[118px] rounded-lg border
+      border-km-border2 bg-km-tip px-2.5 py-2 text-[11.5px] leading-[1.6]
+      shadow-[0_10px_28px_rgb(15_23_42/0.14)] dark:shadow-[0_10px_28px_rgb(0_0_0/0.55)];
+  }
+
+  .km-chart-tip-time {
+    @apply mb-1 text-[10.5px] text-km-faint;
+  }
+
+  .km-chart-tip-row {
+    @apply flex items-center gap-1.5 text-km-dim;
+  }
+
+  .km-chart-tip-row i {
+    @apply size-[7px] shrink-0 rounded-full;
+  }
+
+  .km-chart-tip-row b {
+    @apply ml-auto pl-2 font-semibold text-km-text;
+  }
+
+  .km-chart-tip-missing {
+    @apply font-normal text-km-faint;
+  }
 }

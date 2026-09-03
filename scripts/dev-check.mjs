@@ -12,9 +12,9 @@
  *   - render-check 是 SSR 出字符串，没有 document、没有 URL 解析、
  *     也没有客户端路由。
  *
- * 真实踩过的坑：开发态 base 一度和构建一样用了 /themes/{short}/dist/，
- * 于是地址栏 pathname 带上这段前缀，React Router 匹配不到任何路由，
- * 被 `path="*"` 兜回首页 —— 详情页在开发态永远打不开，而四层检查全绿。
+ * 它盯的具体问题：开发态 base 若和构建一样用 /themes/{short}/dist/，地址栏
+ * pathname 就带上这段前缀，React Router 匹配不到任何路由，被 `path="*"`
+ * 兜回首页 —— 详情页在开发态永远打不开，而其余各层检查全绿。
  */
 
 import { spawn } from 'node:child_process'

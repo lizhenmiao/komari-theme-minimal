@@ -11,7 +11,7 @@ export default function StatusDot({ online }: StatusDotProps) {
   return (
     <span
       className={`km-dot km-ui-status-dot ${
-        online ? 'km-dot-live bg-emerald-500' : 'bg-rose-500'
+        online ? 'km-dot-live bg-km-ok' : 'bg-km-bad'
       }`}
     />
   )

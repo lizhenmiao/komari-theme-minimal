@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>console - 设计稿 / 详情页</title>
+    <script>
+      try {
+        if (localStorage.getItem('km-console-theme') === 'light')
+          document.documentElement.classList.remove('dark')
+      } catch {}
+    </script>
+    <style>
+      /* ============================================================
+       * 设计稿 v2「console」详情页 —— 与首页同一套设计语言：
+       * 深色为主 / 侧栏 / 硬边框面板 / 等宽数字 / 环形仪表 /
+       * 自绘 SVG 曲线（十字线悬停，断口表示丢包）。零外部依赖。
+       * ============================================================ */
+      * { box-sizing: border-box; }
+      html { height: 100%; }
+      body {
+        margin: 0; min-height: 100%;
+        font: 14px/1.5 system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        background: var(--bg); color: var(--text);
+        -webkit-font-smoothing: antialiased;
+      }
+      html.dark { color-scheme: dark; }
+      html:not(.dark) { color-scheme: light; }
+
+      :root {
+        --bg: #f3f5f8; --bg-side: #eef0f4; --panel: #ffffff; --panel2: #f4f6f9;
+        --border: #dfe3e9; --border2: #c9cfd8;
+        --text: #1d2632; --dim: #5d6a78; --faint: #8b96a3;
+        --track: #e8ebf0; --tip: #ffffff;
+        --bg-field: linear-gradient(180deg, #f3f5f8 0%, #eceff4 100%);
+        --blob1: rgba(59, 130, 246, 0.09);
+        --blob2: rgba(99, 102, 241, 0.07);
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.10);
+        --cpu: #0891b2; --mem: #c026d3; --disk: #d97706; --swap: #65a30d;
+        --up: #0891b2; --down: #6366f1; --quo: #0284c7;
+        --ok: #059669; --warn: #ea580c; --bad: #e11d48;
+      }
+      html.dark {
+        --bg: #0b0d10; --bg-side: #0d0f13; --panel: #12151a; --panel2: #171b21;
+        --border: #22262d; --border2: #31363f;
+        --text: #dce4ee; --dim: #93a1b1; --faint: #5c6a79;
+        --track: #1b1f26; --tip: #161a20;
+        --bg-field: linear-gradient(180deg, #0e1015 0%, #0a0c10 100%);
+        --blob1: rgba(59, 130, 246, 0.16);
+        --blob2: rgba(99, 102, 241, 0.11);
+        --accent: #3b82f6;
+        --accent-soft: rgba(59, 130, 246, 0.14);
+        --cpu: #22d3ee; --mem: #e879f9; --disk: #fbbf24; --swap: #a3e635;
+        --up: #22d3ee; --down: #818cf8; --quo: #38bdf8;
+        --ok: #34d399; --warn: #fb923c; --bad: #fb7185;
+      }
+
+      .num { font-family: ui-monospace, 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+      .t-cpu { color: var(--cpu); } .t-mem { color: var(--mem); } .t-disk { color: var(--disk); }
+      .t-swap { color: var(--swap); } .t-quo { color: var(--quo); } .t-up { color: var(--up); }
+      .t-down { color: var(--down); } .t-warn { color: var(--warn); } .t-bad { color: var(--bad); }
+
+      /*
+       * 背景层：与首页同一套——中性色场 + 两团同色系光晕缓慢游移。
+       * 克制的环境动效，只做 transform 动画，面板实色不受干扰。
+       */
+      .bg-layer {
+        position: fixed; inset: 0; z-index: -1;
+        pointer-events: none; overflow: hidden;
+        background: var(--bg-field);
+      }
+      .bl {
+        position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%;
+        filter: blur(80px); will-change: transform;
+      }
+      .bl-a {
+        top: -26vmax; left: -16vmax;
+        background: radial-gradient(circle at 42% 42%, var(--blob1), transparent 64%);
+        animation: bl-a 34s ease-in-out infinite alternate;
+      }
+      .bl-b {
+        top: 14vmax; right: -30vmax;
+        background: radial-gradient(circle at 55% 45%, var(--blob2), transparent 64%);
+        animation: bl-b 44s ease-in-out infinite alternate;
+      }
+      @keyframes bl-a {
+        to { transform: translate3d(11vw, 9vh, 0) scale(1.16); }
+      }
+      @keyframes bl-b {
+        from { transform: translate3d(0, 0, 0) scale(1.06); }
+        to   { transform: translate3d(-9vw, -7vh, 0) scale(1); }
+      }
+
+      /* ---------- 顶栏 ---------- */
+      .topbar {
+        position: sticky; top: 0; z-index: 20;
+        display: flex; align-items: center; gap: 9px; height: 54px; padding: 0 20px;
+        background: color-mix(in srgb, var(--bg) 72%, transparent);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+      .ibtn {
+        display: grid; place-items: center; width: 32px; height: 32px;
+        border: 1px solid transparent; border-radius: 7px;
+        background: none; color: var(--dim); cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        text-decoration: none;
+      }
+      .ibtn:hover { color: var(--text); border-color: var(--border2); background: var(--panel2); }
+      .ibtn svg { width: 16px; height: 16px; }
+      .flag { width: 20px; height: 15px; object-fit: cover; border-radius: 2px; box-shadow: 0 0 0 1px rgba(128, 140, 155, 0.35); flex-shrink: 0; display: block; }
+      .osic { width: 15px; height: 15px; flex-shrink: 0; }
+      .led { position: relative; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--ok); }
+      .led.off { background: var(--bad); }
+      .led.on::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--ok); animation: ripple 2.4s ease-out infinite; }
+      @keyframes ripple { 0% { transform: scale(1); opacity: 0.5; } 75%, 100% { transform: scale(3); opacity: 0; } }
+      .pt-name { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; }
+      .tag { flex-shrink: 0; font-size: 11px; line-height: 1.4; padding: 1px 6px; border: 1px solid; border-radius: 4px; font-weight: 500; }
+      .tag0 { color: var(--cpu); border-color: color-mix(in srgb, var(--cpu) 40%, transparent); }
+      .pt-spec { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      main { flex: 1; width: 100%; max-width: 1560px; margin: 0 auto; padding: 18px 20px 8px; display: flex; flex-direction: column; gap: 14px; }
+      .hidden { display: none !important; }
+      .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+      .lb { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; }
+      .sec { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: var(--faint); text-transform: uppercase; margin: 0 0 8px; }
+
+      /* ---------- 环形仪表 ---------- */
+      .gauges { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+      .gcard { padding: 14px; }
+      .ghd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      .ghd .lb { font-size: 11.5px; color: var(--dim); font-weight: 600; letter-spacing: 0.08em; }
+      .ghd .on { color: var(--swap); font-weight: 500; }
+      .gpct { font-size: 20px; font-weight: 700; }
+      .gbody { display: flex; align-items: center; gap: 14px; }
+      .dial { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+      .dial svg { width: 100%; height: 100%; display: block; }
+      .gtrack { fill: none; stroke: var(--track); stroke-width: 7; }
+      .gval { fill: none; stroke-width: 7; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dasharray 0.6s ease; }
+      .gmid {
+        position: absolute; inset: 0; display: grid; place-items: center;
+        font-size: 19px; font-weight: 700;
+      }
+      .gmid i { font-style: normal; font-size: 11px; color: var(--faint); margin-left: 1px; }
+      .gnums { min-width: 0; }
+      .gused { margin: 0; font-size: 15px; font-weight: 650; white-space: nowrap; }
+      .gused span { color: var(--faint); font-weight: 400; font-size: 12px; }
+      .gsub { margin: 4px 0 0; font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      /* ---------- 仪表面板条：一整块分五格 ---------- */
+      .strip { display: grid; gap: 14px; padding: 14px 16px; grid-template-columns: 1fr; }
+      .strip section { min-width: 0; }
+      .irow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 2.5px 0; font-size: 12.5px; }
+      .irow dt { color: var(--dim); flex-shrink: 0; }
+      .irow dd { margin: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .irow dd b { font-weight: 650; }
+      .irow .mut { color: var(--faint); font-weight: 400; }
+      @media (min-width: 640px) { .strip { grid-template-columns: 1fr 1fr; } }
+      @media (min-width: 1100px) {
+        .strip { grid-template-columns: repeat(5, 1fr); }
+        .strip section + section { border-left: 1px solid var(--border); padding-left: 14px; margin-left: -14px; }
+      }
+
+      .pingrow { display: flex; gap: 6px; flex-wrap: wrap; }
+      .ping {
+        display: inline-flex; align-items: baseline; gap: 4px;
+        border: 1px solid var(--border2); border-radius: 5px; padding: 2.5px 7px;
+        font-size: 11px; color: var(--faint);
+      }
+      .ping b { font-size: 13px; font-weight: 650; color: var(--pc, var(--text)); }
+      .ping .ums { font-size: 9.5px; opacity: 0.7; }
+
+      /* ---------- 曲线区 ---------- */
+      .charts-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
+      .charts-hd h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+      .seg {
+        display: inline-flex; gap: 2px; padding: 2px;
+        border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+      }
+      .seg button {
+        border: 0; border-radius: 6px; padding: 5px 11px; cursor: pointer;
+        font: 500 12.5px/1.2 inherit; color: var(--dim); background: none;
+        transition: color 0.15s, background 0.15s;
+      }
+      .seg button:hover { color: var(--text); }
+      .seg button.on { background: var(--text); color: var(--bg); font-weight: 600; }
+      html.dark .seg button.on { background: #e6edf5; color: #0a0d12; }
+
+      .charts { display: grid; gap: 12px; grid-template-columns: 1fr; }
+      @media (min-width: 1100px) { .charts { grid-template-columns: 1fr 1fr; } }
+      /* min-width:0 解除 grid 项被固定宽度 SVG 撑住、容器缩不回的死锁 */
+      .chart-card { padding: 13px 14px 8px; min-width: 0; }
+      .chd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 8px; }
+      .chd .lg { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.08em; color: var(--dim); font-weight: 600; }
+      .lgd { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+      .csum { margin: 0; font-size: 11.5px; color: var(--faint); }
+      .plot { position: relative; height: 170px; overflow: hidden; }
+      .plot svg { display: block; }
+      .plot text { font-family: ui-monospace, Consolas, monospace; font-size: 10px; fill: var(--faint); }
+      .plot .xhair { stroke: var(--border2); stroke-width: 1; stroke-dasharray: 3 3; }
+      .tt {
+        position: absolute; z-index: 30; top: 6px; pointer-events: none;
+        background: var(--tip); border: 1px solid var(--border2); border-radius: 7px;
+        padding: 6px 9px; min-width: 118px;
+        box-shadow: 0 8px 22px rgba(2, 6, 12, 0.4);
+        opacity: 0; visibility: hidden; transition: opacity 0.1s;
+      }
+      html:not(.dark) .tt { box-shadow: 0 8px 22px rgba(30, 41, 59, 0.16); }
+      .tt .tt-t { font-size: 10px; color: var(--faint); margin-bottom: 3px; }
+      .tt .tt-r { display: flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 0; }
+      .tt .tt-r i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+      .tt .tt-r b { margin-left: auto; font-weight: 650; padding-left: 10px; }
+
+      /* ---------- 信息面板 ---------- */
+      .infos { display: grid; gap: 12px; grid-template-columns: 1fr; }
+      @media (min-width: 960px) { .infos { grid-template-columns: repeat(3, 1fr); } }
+      .info { padding: 14px 16px; }
+      .info dl { margin: 0; }
+      .info .irow dt { min-width: 64px; }
+      .info .irow { font-size: 12.5px; }
+
+      footer { max-width: 1560px; margin: 0 auto; width: 100%; padding: 10px 20px 26px; }
+      .foot-in { border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--faint); }
+
+      @media (max-width: 1023px) {
+        .app { grid-template-columns: 1fr; }
+        .topbar { padding: 0 14px; }
+        main { padding: 14px 14px 6px; }
+        footer { padding: 10px 14px 22px; }
+      }
+      @media (max-width: 640px) { .pt-spec { display: none; } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .bl { animation: none; }
+        .led.on::after { animation: none; opacity: 0.25; transform: scale(1.8); }
+        .ibtn, .seg button, .tt { transition: none; }
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="bg-layer" aria-hidden="true">
+      <i class="bl bl-a"></i>
+      <i class="bl bl-b"></i>
+    </div>
+
+        <header class="topbar">
+          <a class="ibtn" href="./mockup-console-index.html" title="返回">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 5l-7 7 7 7"/></svg>
+          </a>
+          <img class="flag" src="../public/flags/jp.svg" alt="JP" />
+          <svg viewBox="0 0 24 24" class="osic" fill="#E95420" role="img" aria-label="ubuntu"><path d="M17.61.455a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zM12.92.8C8.923.777 5.137 2.941 3.148 6.451a4.5 4.5 0 0 1 .26-.007 4.92 4.92 0 0 1 2.585.737A8.316 8.316 0 0 1 12.688 3.6 4.944 4.944 0 0 1 13.723.834 11.008 11.008 0 0 0 12.92.8zm9.226 4.994a4.915 4.915 0 0 1-1.918 2.246 8.36 8.36 0 0 1-.273 8.303 4.89 4.89 0 0 1 1.632 2.54 11.156 11.156 0 0 0 .559-13.089zM3.41 7.932A3.41 3.41 0 0 0 0 11.342a3.41 3.41 0 0 0 3.41 3.409 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zm2.027 7.866a4.908 4.908 0 0 1-2.915.358 11.1 11.1 0 0 0 7.991 6.698 11.234 11.234 0 0 0 2.422.249 4.879 4.879 0 0 1-.999-2.85 8.484 8.484 0 0 1-.836-.136 8.304 8.304 0 0 1-5.663-4.32zm11.405.928a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41z"/></svg>
+          <span class="led on"></span>
+          <span class="pt-name">Bravo 东京</span>
+          <span class="tag tag0">生产</span>
+          <span class="pt-spec num">8核 · 15.6 GB · 158 GB · Ubuntu 24.04 · KVM</span>
+          <div style="flex: 1"></div>
+          <button class="ibtn" title="语言">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <circle cx="12" cy="12" r="9" /><path d="M3 12h18" />
+              <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
+            </svg>
+          </button>
+          <button class="ibtn" id="theme-toggle" title="外观">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="sun">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" />
+            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="moon hidden">
+              <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" />
+            </svg>
+          </button>
+        </header>
+
+        <main>
+          <!-- 当前占用：环形仪表 -->
+          <section class="gauges" id="gauges"></section>
+
+          <!-- 仪表面板条 -->
+          <section class="panel strip">
+            <section>
+              <p class="sec">网速</p>
+              <dl>
+                <div class="irow"><dt><span class="t-up">&uarr;</span> 上行</dt><dd class="num"><b>41.2 MB/s</b></dd></div>
+                <div class="irow"><dt><span class="t-down">&darr;</span> 下行</dt><dd class="num"><b>88.3 MB/s</b></dd></div>
+                <div class="irow"><dt>峰值</dt><dd class="num mut">96.4 / 214 MB/s</dd></div>
+              </dl>
+            </section>
+            <section>
+              <p class="sec">流量</p>
+              <dl>
+                <div class="irow"><dt><span class="t-up">&uarr;</span> 上行</dt><dd class="num"><b>6.02 TB</b></dd></div>
+                <div class="irow"><dt><span class="t-down">&darr;</span> 下行</dt><dd class="num"><b>12.8 TB</b></dd></div>
+                <div class="irow"><dt>合计 / 配额</dt><dd class="num mut">18.8 TB / 不限</dd></div>
+              </dl>
+            </section>
+            <section>
+              <p class="sec">负载</p>
+              <dl>
+                <div class="irow"><dt>1 / 5 / 15 分</dt>
+                  <dd class="num"><b>6.81</b> <span class="mut">5.94 4.12</span></dd></div>
+                <div class="irow"><dt>进程</dt><dd class="num">418</dd></div>
+                <div class="irow"><dt>连接</dt><dd class="num">2913</dd></div>
+              </dl>
+            </section>
+            <section>
+              <p class="sec">时间</p>
+              <dl>
+                <div class="irow"><dt>在线</dt><dd class="num"><b>118天21小时</b></dd></div>
+                <div class="irow"><dt>到期</dt><dd class="num">01/15/2027</dd></div>
+                <div class="irow"><dt>剩余</dt><dd class="num"><b class="t-quo">139 天</b></dd></div>
+              </dl>
+            </section>
+            <section>
+              <p class="sec">三网延迟</p>
+              <div class="pingrow">
+                <span class="ping" style="--pc: var(--cpu)">电信 <b>38</b><span class="ums">ms</span></span>
+                <span class="ping" style="--pc: var(--mem)">联通 <b>52</b><span class="ums">ms</span></span>
+                <span class="ping" style="--pc: var(--swap)">移动 <b>41</b><span class="ums">ms</span></span>
+              </div>
+              <p class="num" style="font-size: 12px; color: var(--faint); margin: 8px 0 0">丢包 <span class="t-warn">2.1%</span></p>
+            </section>
+          </section>
+
+          <div class="charts-hd">
+            <h2>历史曲线</h2>
+            <div class="seg km-range-switch" id="range-seg"></div>
+          </div>
+
+          <section class="charts" id="charts"></section>
+
+          <section class="infos">
+            <div class="panel info">
+              <p class="sec">硬件</p>
+              <dl>
+                <div class="irow"><dt>CPU</dt><dd>Intel Xeon Platinum 8375C</dd></div>
+                <div class="irow"><dt>核心</dt><dd class="num">8 核（物理 4）</dd></div>
+                <div class="irow"><dt>内存</dt><dd class="num">15.6 GB</dd></div>
+                <div class="irow"><dt>Swap</dt><dd class="num">2.00 GB <span class="t-swap">已开启</span></dd></div>
+                <div class="irow"><dt>硬盘</dt><dd class="num">158 GB</dd></div>
+                <div class="irow"><dt>GPU</dt><dd style="color: var(--faint)">无</dd></div>
+              </dl>
+            </div>
+            <div class="panel info">
+              <p class="sec">系统</p>
+              <dl>
+                <div class="irow"><dt>系统</dt><dd>Ubuntu 24.04 LTS</dd></div>
+                <div class="irow"><dt>架构</dt><dd class="num">x86_64</dd></div>
+                <div class="irow"><dt>虚拟化</dt><dd>KVM</dd></div>
+                <div class="irow"><dt>内核</dt><dd class="num">6.8.0-45-generic</dd></div>
+                <div class="irow"><dt>Agent</dt><dd class="num">v1.0.9</dd></div>
+                <div class="irow"><dt>地区</dt><dd>JP 东京</dd></div>
+              </dl>
+            </div>
+            <div class="panel info">
+              <p class="sec">账单</p>
+              <dl>
+                <div class="irow"><dt>价格</dt><dd class="num">24.00 USD / 月</dd></div>
+                <div class="irow"><dt>周期</dt><dd class="num">30 天</dd></div>
+                <div class="irow"><dt>到期</dt><dd class="num">01/15/2027</dd></div>
+                <div class="irow"><dt>剩余</dt><dd class="num t-quo"><b>139 天</b></dd></div>
+                <div class="irow"><dt>流量重置</dt><dd class="num">每月 1 日</dd></div>
+                <div class="irow"><dt>标签</dt><dd>生产</dd></div>
+              </dl>
+            </div>
+          </section>
+        </main>
+
+        <footer>
+          <div class="foot-in">
+            <span>Powered by Komari Monitor.</span>
+            <span class="num">Komari Minimal · 设计稿 v0.4</span>
+          </div>
+        </footer>
+
+    <script>
+      /* ================= 环形仪表 ================= */
+      const gauge = (label, p, cls, used, total, sub, extraLb) => {
+        const tone = p >= 90 ? 'var(--bad)' : p >= 75 ? 'var(--warn)' : `var(--${cls})`
+        const C = 2 * Math.PI * 40
+        return `
+        <div class="panel gcard">
+          <div class="ghd">
+            <span class="lb">${label}${extraLb || ''}</span>
+            <span class="gpct num" style="color:${tone}">${p.toFixed(1)}%</span>
+          </div>
+          <div class="gbody">
+            <div class="dial">
+              <svg viewBox="0 0 96 96" aria-hidden="true">
+                <circle class="gtrack" cx="48" cy="48" r="40"/>
+                <circle class="gval" cx="48" cy="48" r="40" style="stroke:${tone};
+                  stroke-dasharray:${(p / 100 * C).toFixed(1)} ${C.toFixed(1)}"/>
+              </svg>
+              <span class="gmid num">${p.toFixed(0)}<i>%</i></span>
+            </div>
+            <div class="gnums">
+              <p class="gused num">${used} <span>/ ${total}</span></p>
+              <p class="gsub">${sub}</p>
+            </div>
+          </div>
+        </div>`
+      }
+
+      document.getElementById('gauges').innerHTML = [
+        gauge('CPU', 87.6, 'cpu', '7.0 核', '8 核', 'Intel Xeon Platinum 8375C'),
+        gauge('内存', 89.1, 'mem', '13.9 GB', '15.6 GB', '剩余 1.70 GB'),
+        gauge('硬盘', 76.6, 'disk', '121 GB', '158 GB', '剩余 37.0 GB'),
+        gauge('Swap', 20.1, 'swap', '412 MB', '2.00 GB', '剩余 1.60 GB', ' <span class="on">已开启</span>'),
+      ].join('')
+
+      /* ================= 自绘 SVG 曲线 =================
+       * 不引第三方库：面积渐变 + 描边 + 辉光下衬，
+       * 十字线悬停读数，null 断口表示丢包。 */
+
+      const RANGES = [
+        { key: '1h',  label: '1时',  n: 60,  step: 60 },
+        { key: '4h',  label: '4时',  n: 240, step: 60 },
+        { key: '24h', label: '24时', n: 288, step: 300 },
+        { key: '7d',  label: '7天',  n: 168, step: 3600 },
+        { key: '30d', label: '30天', n: 180, step: 14400 },
+      ]
+      let range = RANGES[1]
+
+      /* 波形生成：seed 决定相位，周期随步长放大，切时间窗后形状可信 */
+      const wave = (len, seed, base, amp, step) => {
+        const period = 9 * Math.max(1, step / 60)
+        return Array.from({ length: len }, (_, i) =>
+          Math.max(0, base + (Math.sin(i / period + seed) * 0.6 + Math.sin(i / (period * 0.37) + seed * 2) * 0.4) * amp))
+      }
+      /* 在固定位置挖空洞，模拟丢包断口 */
+      const gapify = (arr, windows) => {
+        const out = [...arr]
+        for (const [a, b] of windows)
+          for (let i = Math.floor(a * arr.length); i < Math.floor(b * arr.length); i++) out[i] = null
+        return out
+      }
+
+      const fmtPct = (v) => `${v.toFixed(0)}%`
+      const fmtBps = (v) => {
+        if (!v) return '0 B/s'
+        const u = ['B', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.min(Math.floor(Math.log(v) / Math.log(1024)), u.length - 1)
+        return `${(v / 1024 ** i).toFixed(i > 1 ? 1 : 0)} ${u[i]}/s`
+      }
+      /* Y 轴用的短格式：轴外空间窄，「400.0 MB/s」放不下 */
+      const fmtBpsAx = (v) => {
+        if (!v) return '0'
+        const u = ['B', 'K', 'M', 'G', 'T']
+        const i = Math.min(Math.floor(Math.log(v) / Math.log(1024)), u.length - 1)
+        const val = v / 1024 ** i
+        return `${val >= 100 ? val.toFixed(0) : val >= 10 ? val.toFixed(1) : val.toFixed(2)}${u[i]}`
+      }
+      const fmtLoad = (v) => v.toFixed(2)
+      const fmtMs = (v) => `${v.toFixed(0)}ms`
+
+      const state = {}
+      const buildData = () => {
+        const { n, step } = range
+        const t0 = Math.floor(Date.now() / 1000) - n * step
+        state.time = Array.from({ length: n }, (_, i) => t0 + i * step)
+        state.charts = [
+          {
+            id: 'c-cpu', title: 'CPU 占用', varc: '--cpu', fixed: [0, 100], fill: true,
+            fmt: fmtPct,
+            series: [{ label: 'CPU', data: wave(n, 1, 78, 12, step) }],
+            sum: (s) => {
+              const d = s[0].data.filter((v) => v != null)
+              return `峰值 ${Math.max(...d).toFixed(0)}% · 均值 ${(d.reduce((a, b) => a + b, 0) / d.length).toFixed(0)}%`
+            },
+          },
+          {
+            id: 'c-mem', title: '内存 / Swap', varc: '--mem', fixed: [0, 100], fill: true,
+            fmt: fmtPct,
+            series: [
+              { label: '内存', data: wave(n, 2, 86, 5, step) },
+              { label: 'Swap', data: wave(n, 7, 19, 6, step), varc: '--swap' },
+            ],
+            sum: () => '13.9 / 15.6 GB · 412 MB / 2 GB',
+          },
+          {
+            id: 'c-disk', title: '硬盘占用', varc: '--disk', fixed: [0, 100], fill: true,
+            fmt: fmtPct,
+            series: [{ label: '硬盘', data: Array.from({ length: n }, (_, i) =>
+              Math.min(92, 76 + i * (10 / n) + Math.sin(i / (11 * Math.max(1, step / 60)) + 8) * 0.8)) }],
+            sum: () => '121 / 158 GB',
+          },
+          {
+            id: 'c-net', title: '网络', varc: '--down', fill: true,
+            fmt: fmtBps, axfmt: fmtBpsAx,
+            series: [
+              { label: '下行', data: wave(n, 3, 706e6, 3e8, step) },
+              { label: '上行', data: wave(n, 5, 329e6, 1.6e8, step), varc: '--up' },
+            ],
+            sum: (s) => `${fmtBps(s[0].data[n - 1])} / ${fmtBps(s[1].data[n - 1])}`,
+          },
+          {
+            id: 'c-load', title: '负载', varc: '--warn', fill: true,
+            fmt: fmtLoad,
+            series: [
+              { label: '1 分钟', data: wave(n, 4, 5.9, 1.8, step) },
+              { label: '5 分钟', data: wave(n, 6, 4.4, 1.1, step), varc: '--disk' },
+            ],
+            sum: () => '1 / 5 分钟',
+          },
+          {
+            id: 'c-ping', title: '三网延迟', varc: '--cpu',
+            fmt: fmtMs,
+            series: [
+              { label: '电信', data: gapify(wave(n, 9, 38, 6, step), [[0.29, 0.32]]) },
+              { label: '联通', data: gapify(wave(n, 4, 52, 8, step), [[0.64, 0.66]]), varc: '--mem' },
+              { label: '移动', data: gapify(wave(n, 6, 41, 7, step), [[0.29, 0.32], [0.8, 0.82]]), varc: '--swap' },
+            ],
+            sum: () => '断口 = 丢包',
+          },
+        ]
+      }
+
+      /* 把数据切成非空连续段：null 处断线，表示丢包 */
+      const runsOf = (data) => {
+        const out = []
+        let cur = []
+        data.forEach((v, i) => {
+          if (v == null) { if (cur.length) { out.push(cur); cur = [] } }
+          else cur.push([i, v])
+        })
+        if (cur.length) out.push(cur)
+        return out
+      }
+
+      const tFmt = (ts) => {
+        const d = new Date(ts * 1000)
+        const p = (x) => String(x).padStart(2, '0')
+        return range.step >= 3600
+          ? `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:00`
+          : `${p(d.getHours())}:${p(d.getMinutes())}`
+      }
+
+      const PAD = { l: 46, r: 10, t: 10, b: 20 }
+
+      const drawChart = (cfg) => {
+        const el = document.getElementById(cfg.id)
+        if (!el) return
+        el.innerHTML = ''
+        const W = Math.max(280, el.clientWidth), H = 170
+        const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b
+        const N = state.time.length
+
+        let lo, hi
+        if (cfg.fixed) { [lo, hi] = cfg.fixed }
+        else {
+          const vals = cfg.series.flatMap((s) => s.data.filter((v) => v != null))
+          const mn = Math.min(...vals), mx = Math.max(...vals)
+          const span = (mx - mn) || 1
+          lo = Math.max(0, mn - span * 0.12)
+          hi = mx + span * 0.12
+        }
+        const X = (i) => PAD.l + (i / (N - 1)) * pw
+        const Y = (v) => PAD.t + (1 - (v - lo) / (hi - lo)) * ph
+
+        /* 网格 + 坐标轴文字 */
+        const ax = cfg.axfmt || cfg.fmt
+        let g = ''
+        for (let k = 0; k <= 4; k++) {
+          const v = lo + ((hi - lo) * k) / 4
+          const y = Y(v).toFixed(1)
+          g += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}"
+                 stroke="var(--track)" stroke-width="1"/>
+                <text x="${PAD.l - 6}" y="${+y + 3}" text-anchor="end">${ax(v)}</text>`
+        }
+        for (let k = 0; k < 5; k++) {
+          const i = Math.round((k * (N - 1)) / 4)
+          /* 首尾刻度改 start/end 对齐，否则最后一个时间标签会被 svg 右缘裁掉 */
+          const anchor = k === 0 ? 'start' : k === 4 ? 'end' : 'middle'
+          g += `<text x="${X(i).toFixed(1)}" y="${H - 6}" text-anchor="${anchor}">${tFmt(state.time[i])}</text>`
+        }
+
+        /* 每条 series：辉光下衬 + 主线；面积渐变只给第一条（其余走线） */
+        let defs = '', body = ''
+        cfg.series.forEach((s, si) => {
+          const col = `var(${s.varc || cfg.varc})`
+          const gid = `g-${cfg.id}-${si}`
+          if (cfg.fill && si === 0) {
+            defs += `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style="stop-color:${col};stop-opacity:0.26"/>
+              <stop offset="1" style="stop-color:${col};stop-opacity:0"/>
+            </linearGradient>`
+          }
+          const runs = runsOf(s.data)
+          const line = runs.map((run) =>
+            `M${run.map(([i, v]) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('L')}`).join('')
+          body += `<path d="${line}" fill="none" stroke="${col}" stroke-width="4" opacity="0.14"/>`
+          if (cfg.fill && si === 0) {
+            const base = PAD.t + ph
+            const area = runs.map((run) => {
+              const head = run.map(([i, v]) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('L')
+              const lastI = run[run.length - 1][0], firstI = run[0][0]
+              return `M${head}L${X(lastI).toFixed(1)},${base}L${X(firstI).toFixed(1)},${base}Z`
+            }).join('')
+            body += `<path d="${area}" fill="url(#${gid})" stroke="none"/>`
+          }
+          body += `<path d="${line}" fill="none" stroke="${col}" stroke-width="1.5"
+                    stroke-linejoin="round" data-line="${si}"/>`
+        })
+
+        /* 悬停件：十字线 + 各 series 采样点（先建好，mousemove 里挪位置） */
+        const dots = cfg.series.map((s, si) =>
+          `<circle class="xdot" data-dot="${si}" r="3" fill="var(${s.varc || cfg.varc})"
+                   stroke="var(--panel)" stroke-width="1.5" visibility="hidden"/>`).join('')
+
+        el.innerHTML = `
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          <defs>${defs}</defs>
+          ${g}${body}
+          <line class="xhair" x1="0" y1="${PAD.t}" x2="0" y2="${PAD.t + ph}" visibility="hidden"/>
+          ${dots}
+          <rect class="ov" x="${PAD.l}" y="${PAD.t}" width="${pw}" height="${ph}" fill="transparent"/>
+        </svg>
+        <div class="tt num"></div>`
+
+        /* ---------- 悬停交互 ---------- */
+        const svg = el.querySelector('svg')
+        const xh = el.querySelector('.xhair')
+        const dotEls = [...el.querySelectorAll('.xdot')]
+        const tt = el.querySelector('.tt')
+        const ov = el.querySelector('.ov')
+
+        ov.addEventListener('mousemove', (e) => {
+          const r = svg.getBoundingClientRect()
+          const x = e.clientX - r.left
+          const i = Math.max(0, Math.min(N - 1, Math.round(((x - PAD.l) / pw) * (N - 1))))
+          const px = X(i)
+          xh.setAttribute('x1', px); xh.setAttribute('x2', px)
+          xh.setAttribute('visibility', 'visible')
+          let rows = ''
+          cfg.series.forEach((s, si) => {
+            const v = s.data[i]
+            const d = dotEls[si]
+            if (v == null) { d.setAttribute('visibility', 'hidden'); rows += `
+              <div class="tt-r"><i style="background:var(${s.varc || cfg.varc});opacity:.4"></i>${s.label}<b style="color:var(--faint)">丢包</b></div>` }
+            else {
+              d.setAttribute('cx', px); d.setAttribute('cy', Y(v)); d.setAttribute('visibility', 'visible')
+              rows += `<div class="tt-r"><i style="background:var(${s.varc || cfg.varc})"></i>${s.label}<b>${cfg.fmt(v)}</b></div>`
+            }
+          })
+          tt.innerHTML = `<div class="tt-t">${tFmt(state.time[i])}</div>${rows}`
+          tt.style.visibility = 'visible'; tt.style.opacity = 1
+          const tw = tt.offsetWidth
+          tt.style.left = `${px + 12 + tw > W - 4 ? px - tw - 12 : px + 12}px`
+        })
+        ov.addEventListener('mouseleave', () => {
+          xh.setAttribute('visibility', 'hidden')
+          dotEls.forEach((d) => d.setAttribute('visibility', 'hidden'))
+          tt.style.visibility = 'hidden'; tt.style.opacity = 0
+        })
+      }
+
+      /* ---------- 渲染入口 ---------- */
+      const legendOf = (c) => (c.series.length === 1
+        ? `<i class="lgd" style="background:var(${c.varc})"></i>${c.title}`
+        : c.series.map((s) =>
+            `<i class="lgd" style="background:var(${s.varc || c.varc})"></i>${s.label}`).join(''))
+
+      const renderCharts = () => {
+        buildData()
+        document.getElementById('charts').innerHTML = state.charts.map((c) => `
+          <div class="panel chart-card">
+            <div class="chd">
+              <p class="lg">${legendOf(c)}</p>
+              <p class="csum num">${c.sum(c.series)}</p>
+            </div>
+            <div class="plot" id="${c.id}"></div>
+          </div>`).join('')
+        state.charts.forEach(drawChart)
+      }
+
+      /* ---------- 时间范围切换 ---------- */
+      const seg = document.getElementById('range-seg')
+      seg.innerHTML = RANGES.map((r) =>
+        `<button data-r="${r.key}" class="${r === range ? 'on' : ''}">${r.label}</button>`).join('')
+      seg.querySelectorAll('button').forEach((btn) => {
+        btn.onclick = () => {
+          range = RANGES.find((r) => r.key === btn.dataset.r)
+          seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn))
+          renderCharts()
+        }
+      })
+
+      renderCharts()
+
+      let rz
+      const redraw = () => {
+        clearTimeout(rz)
+        /* 防抖 280ms：让侧栏 220ms 宽度过渡先走完，重排只发生一次 */
+        rz = setTimeout(() => state.charts.forEach(drawChart), 280)
+      }
+      /* 侧栏收缩/展开会改变主列宽度，容器尺寸变化时重排图表 */
+      new ResizeObserver(redraw).observe(document.getElementById('charts'))
+      addEventListener('resize', redraw)
+
+      /* ---------- 主题 ---------- */
+      const syncThemeIcon = () => {
+        const dark = document.documentElement.classList.contains('dark')
+        document.querySelector('#theme-toggle .sun').classList.toggle('hidden', !dark)
+        document.querySelector('#theme-toggle .moon').classList.toggle('hidden', dark)
+      }
+      document.getElementById('theme-toggle').onclick = () => {
+        document.documentElement.classList.toggle('dark')
+        try { localStorage.setItem('km-console-theme',
+          document.documentElement.classList.contains('dark') ? 'dark' : 'light') } catch {}
+        syncThemeIcon()
+      }
+      syncThemeIcon()
+
+    </script>
+  </body>
+</html>

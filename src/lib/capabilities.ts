@@ -19,6 +19,8 @@ export const METHODS = {
   pingTasks: 'public:getPublicPingTasks',
   /** 延迟的原始采样序列。pingStats 只有聚合值，画曲线要靠这个。 */
   pingRecords: 'public:getPingRecords',
+  /** 当前访客身份。未登录返回 Guest 占位，不会 401。 */
+  me: 'public:getMe',
 } as const
 
 export interface Capabilities {
@@ -34,6 +36,7 @@ export interface Capabilities {
   pingStats: boolean
   pingTasks: boolean
   pingRecords: boolean
+  me: boolean
 }
 
 export const NO_CAPABILITIES: Capabilities = {
@@ -48,6 +51,7 @@ export const NO_CAPABILITIES: Capabilities = {
   pingStats: false,
   pingTasks: false,
   pingRecords: false,
+  me: false,
 }
 
 /** 兼容裸数组和 `{ methods: [...] }` 两种返回；文档给的是数组。 */
@@ -90,5 +94,6 @@ export async function detectCapabilities(client: JsonRpcClient): Promise<Capabil
     pingStats: methods.has(METHODS.pingStats),
     pingTasks: methods.has(METHODS.pingTasks),
     pingRecords: methods.has(METHODS.pingRecords),
+    me: methods.has(METHODS.me),
   }
 }

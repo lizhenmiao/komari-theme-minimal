@@ -19,6 +19,13 @@ interface NavbarProps {
   view?: 'grid' | 'table'
   onViewChange?: (view: 'grid' | 'table') => void
   backTo?: string
+  /**
+   * 右侧的身份入口。
+   *   'admin' 已登录 → 后台
+   *   'login' 已确认未登录 → 登录
+   *   'none'  身份还没问到 → 不显示
+   */
+  authEntry?: 'admin' | 'login' | 'none'
 }
 
 export default function Navbar({
@@ -28,6 +35,7 @@ export default function Navbar({
   view,
   onViewChange,
   backTo,
+  authEntry = 'none',
 }: NavbarProps) {
   const { t } = useTranslation()
   const { cycle } = useAppearance()
@@ -47,10 +55,10 @@ export default function Navbar({
 
   return (
     <header
-      className="km-navbar sticky top-0 z-20 border-b km-hair bg-white/70 backdrop-blur-xl
-        dark:bg-slate-950/70"
+      className="km-navbar sticky top-0 z-20 border-b km-hair backdrop-blur-[12px]"
+      style={{ background: 'color-mix(in srgb, var(--color-km-bg) 72%, transparent)' }}
     >
-      <div className="mx-auto flex h-15 max-w-[1600px] items-center gap-2.5 px-4 sm:px-6">
+      <div className="mx-auto flex h-[54px] max-w-[1560px] items-center gap-2.5 px-3.5 lg:px-5">
         {backTo ? (
           <Link to={backTo} className="km-iconbtn" title={t('nav.back')}>
             <svg
@@ -64,11 +72,25 @@ export default function Navbar({
             </svg>
           </Link>
         ) : (
+          /*
+           * 品牌标记不跟随深浅色：始终深底白线。作为整个界面里唯一的固定色块，
+           * 它承担「这是同一个产品」的识别作用，跟着主题变会失去这个作用。
+           */
           <span
-            className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500
-              to-violet-600 text-[13px] font-bold text-white"
+            className="grid size-[30px] shrink-0 place-items-center rounded-lg border
+              border-white/10 bg-[#0a0a0c]"
+            aria-hidden="true"
           >
-            {sitename.slice(0, 1).toUpperCase() || 'K'}
+            <svg viewBox="0 0 24 24" className="size-4.5">
+              <path
+                d="M3 13.5h3.4l1.9-4.6 3.3 8.2 1.9-4.6H21"
+                fill="none"
+                stroke="#fff"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </span>
         )}
 
@@ -77,14 +99,12 @@ export default function Navbar({
         </Link>
 
         <div className="ml-1.5 hidden items-center gap-2 sm:flex">
-          <span
-            className="km-chip bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10
-              dark:text-emerald-400"
-          >
-            {t('nav.online')} <b className="km-num">{online}</b>
+          <span className="km-chip text-km-dim">
+            {t('nav.online')} <b className="km-num text-km-ok">{online}</b>
           </span>
-          <span className="km-chip bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-            {t('nav.offline')} <b className="km-num">{Math.max(total - online, 0)}</b>
+          <span className="km-chip text-km-dim">
+            {t('nav.offline')}{' '}
+            <b className="km-num text-km-bad">{Math.max(total - online, 0)}</b>
           </span>
         </div>
 
@@ -131,16 +151,17 @@ export default function Navbar({
           </button>
           {langOpen && (
             <div
-              className="absolute right-0 top-11 z-30 w-36 rounded-xl border border-slate-200
-                bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+              className="absolute right-0 top-10 z-30 w-36 rounded-lg border border-km-border2
+                bg-km-tip p-1.5 shadow-[0_10px_30px_rgb(15_23_42/0.12)]
+                dark:shadow-[0_10px_30px_rgb(0_0_0/0.5)]"
             >
               {available.map((code: Language) => (
                 <button
                   key={code}
                   type="button"
-                  className={`block w-full rounded-lg px-2 py-1.5 text-left text-[13px]
-                    hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                      code === language ? 'font-semibold' : ''
+                  className={`block w-full rounded-md px-2 py-1.5 text-left text-[13px]
+                    transition hover:bg-km-panel2 ${
+                      code === language ? 'font-semibold text-km-text' : 'text-km-dim'
                     }`}
                   onClick={() => {
                     setLanguage(code)
@@ -178,6 +199,64 @@ export default function Navbar({
             <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" />
           </svg>
         </button>
+
+        {/*
+         * 后台与登录入口二选一。两者都指向 /admin —— 内置 UI 自己处理认证，
+         * 主题不实现登录表单。
+         *
+         * 用 <a> 而不是 <Link>：/admin 是 Komari 内置 UI，走客户端路由会被本主题
+         * 的 `path="*"` 拦下来兜回首页，必须让浏览器真的发起一次文档请求。
+         *
+         * 'none' 表示还没问到访客身份。此时两个入口都不显示 —— 先给未登录的人
+         * 看到登录、拿到身份后再换成后台，会闪一下。
+         */}
+        {authEntry === 'admin' && (
+          <a href="/admin" className="km-iconbtn km-auth-entry" title={t('nav.admin')}>
+            {/*
+             * Lucide layout-dashboard。四格面板是通用的「控制台」符号，和齿轮
+             * （设置）区分得开 —— 点进去是整个后台，不只是设置页。
+             */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4.5"
+            >
+              <rect width="7" height="9" x="3" y="3" rx="1" />
+              <rect width="7" height="5" x="14" y="3" rx="1" />
+              <rect width="7" height="9" x="14" y="12" rx="1" />
+              <rect width="7" height="5" x="3" y="16" rx="1" />
+            </svg>
+          </a>
+        )}
+
+        {authEntry === 'login' && (
+          <a href="/admin" className="km-iconbtn km-auth-entry" title={t('nav.login')}>
+            {/*
+             * Lucide circle-user。圆框让人形在 18px 下有完整轮廓，不会散成
+             * 两个孤立的形状。
+             *
+             * 线宽 1.9 而不是导航栏其余图标的 1.7：Lucide 原始线宽是 2，这两个
+             * 图标元素较多，1.7 在 18px 下会比旁边的图标细一档。
+             */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4.5"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="10" r="3" />
+              <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+            </svg>
+          </a>
+        )}
       </div>
     </header>
   )

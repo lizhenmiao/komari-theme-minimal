@@ -90,9 +90,9 @@ export interface NodeStatus {
   process: number
   connections: number
   connections_udp: number
-  /** 只有嵌套结构才有，RPC2 路径拿不到。 */
+  /** 历史记录路径没有这个字段，实时状态两条路径都有。 */
   uptime?: number | undefined
-  /** 只有嵌套结构才有，RPC2 路径拿不到。 */
+  /** 只有嵌套结构才有。 */
   message?: string | undefined
 }
 
@@ -140,12 +140,34 @@ export interface PublicInfo {
   custom_body?: string | undefined
 }
 
+/**
+ * 当前访客身份。
+ *
+ * 未登录时服务端返回 `{ username: 'Guest', logged_in: false }` 而不是 401，
+ * 所以这个请求失败只意味着接口不可用，不能当成「未登录」。
+ */
+export interface Viewer {
+  username: string
+  logged_in: boolean
+  uuid?: string | undefined
+  sso_type?: string | undefined
+  sso_id?: string | undefined
+}
+
 export interface PingTask {
   id: number
   name: string
   interval: number
   type: string
   target?: string | undefined
+  /**
+   * 该任务适用哪些节点，值是 uuid 列表。
+   *
+   * 服务端按这个字段判断适用性（database/models/pingTask.go:27 的
+   * AppliesToClient）。缺失或为空数组时本主题按「适用全部节点」处理，
+   * 判定逻辑见 lib/ping.ts。
+   */
+  clients?: string[] | undefined
 }
 
 /** 一条 ping 采样。`value` 为负表示丢包，不是真的负延迟。 */

@@ -5,7 +5,7 @@
  * 语言，然后是纯数字、延迟与负载、最后是日期。可选区块由主题设置控制。
  */
 
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
@@ -13,8 +13,10 @@ import InfoPopover, { InfoRow } from './InfoPopover'
 import OsIcon from './OsIcon'
 import PingBadges from './PingBadges'
 import RegionFlag from './RegionFlag'
+import Sparkline from './Sparkline'
 import StatusDot from './StatusDot'
 import UsageBar from './UsageBar'
+import { useCpuTrend } from '../hooks/useNodes'
 import {
   daysUntil,
   isLongTerm,
@@ -27,14 +29,11 @@ import {
   ratio,
   trafficUsed,
 } from '../lib/format'
+import { tasksFor } from '../lib/ping'
 import type { NodeView, PingTask, ThemeSettings } from '../lib/types'
 
 /** 在一个节点的多个标签间轮换，保证相邻标签颜色不同。 */
-const TAG_TONES = [
-  'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400',
-  'bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400',
-  'bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-500/10 dark:text-fuchsia-400',
-] as const
+const TAG_TONES = ['km-pill-cpu', 'km-pill-swap', 'km-pill-mem'] as const
 
 /** 剩余天数低于这个值，到期日转橙色预警。 */
 const EXPIRY_WARN_DAYS = 14
@@ -49,6 +48,10 @@ interface NodeCardProps {
 function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps) {
   const { t } = useTranslation()
   const { client, status } = node
+  const cpuTrend = useCpuTrend(client.uuid)
+
+  // 运营者可以只给部分节点配探测，不过滤的话没配的节点会显示一排空药丸。
+  const myTasks = useMemo(() => tasksFor(pingTasks, client.uuid), [pingTasks, client.uuid])
 
   const tags = parseTags(client.tags).slice(0, 3)
   const expiry = formatExpiry(client.expired_at)
@@ -90,7 +93,7 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
           {tags.map((tag, index) => (
             <span
               key={tag}
-              className={`km-chip shrink-0 ${TAG_TONES[index % TAG_TONES.length] ?? ''}`}
+              className={`km-pill shrink-0 ${TAG_TONES[index % TAG_TONES.length] ?? ''}`}
             >
               {tag}
             </span>
@@ -106,7 +109,7 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
           </InfoPopover>
         </header>
 
-        <p className="km-num mt-1 truncate text-[12px] text-slate-400 dark:text-slate-500">
+        <p className="km-num mt-1 truncate text-[12px] text-km-faint">
           {client.cpu_cores}C · {formatBytes(client.mem_total)} · {formatBytes(client.disk_total)} ·{' '}
           {client.os}
         </p>
@@ -116,9 +119,7 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
             label={t('metric.cpu')}
             tone="cpu"
             percent={status ? ratio(status.cpu, 100) : null}
-            usedText={
-              status ? `${((client.cpu_cores * status.cpu) / 100).toFixed(1)}C` : '—'
-            }
+            usedText={status ? `${((client.cpu_cores * status.cpu) / 100).toFixed(1)}C` : '—'}
             totalText={`${client.cpu_cores}C`}
           />
           <UsageBar
@@ -159,24 +160,39 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
           </div>
         )}
 
+        {/*
+         * CPU 趋势。数据由轮询累积，刚打开页面时点数不够就整块不渲染 ——
+         * 画一条只有两三个点的折线比不画更容易让人误读。
+         */}
+        {settings.showSparkline && cpuTrend.length >= 2 && (
+          <div className={`mt-2.5 ${dim}`}>
+            <Sparkline
+              data={cpuTrend}
+              color="var(--color-km-cpu)"
+              label={t('metric.cpu')}
+              dimmed={!status?.online}
+            />
+          </div>
+        )}
+
         <div className={`mt-2.5 grid grid-cols-2 gap-x-4 border-t km-hair pt-2 ${dim}`}>
           <div>
             <p className="km-section mb-1">{t('metric.liveSpeed')}</p>
             <p className="km-num text-[13px]">
-              <span className="km-text-cpu">&uarr;</span>
+              <span className="km-text-up">&uarr;</span>
               <b className="font-semibold">{status ? formatSpeed(status.net_out) : '—'}</b>
-              <span className="ml-2 km-text-quota">&darr;</span>
+              <span className="ml-2 km-text-down">&darr;</span>
               <b className="font-semibold">{status ? formatSpeed(status.net_in) : '—'}</b>
             </p>
           </div>
           <div>
             <p className="km-section mb-1">{t('metric.totalTraffic')}</p>
             <p className="km-num text-[13px]">
-              <span className="km-text-cpu">&uarr;</span>
+              <span className="km-text-up">&uarr;</span>
               <b className="font-semibold">
                 {status ? formatBytes(status.net_total_up, true) : '—'}
               </b>
-              <span className="ml-2 km-text-quota">&darr;</span>
+              <span className="ml-2 km-text-down">&darr;</span>
               <b className="font-semibold">
                 {status ? formatBytes(status.net_total_down, true) : '—'}
               </b>
@@ -186,12 +202,12 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
 
         {(settings.showPing || settings.showLoad) && (
           <div className={`mt-2.5 grid grid-cols-2 gap-x-4 border-t km-hair pt-2 ${dim}`}>
-            {settings.showPing && pingTasks.length > 0 && (
+            {settings.showPing && myTasks.length > 0 && (
               <div>
                 <p className="km-section mb-1">
-                  {t('metric.latency')} <span className="normal-case opacity-60">ms</span>
+                  {t('metric.latency')} <span className="normal-case text-km-faint">ms</span>
                 </p>
-                <PingBadges tasks={pingTasks} values={pingValues} />
+                <PingBadges tasks={myTasks} values={pingValues} />
               </div>
             )}
             {settings.showLoad && (
@@ -200,17 +216,20 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
                   {t('metric.load')}
                   {/* 单独一个 group 名，这样悬停这里不会把卡片上的 popover 一起打开。 */}
                   <InfoPopover group="tip" width="w-52">
-                    <span className="leading-relaxed text-slate-600 dark:text-slate-300">
+                    <span className="leading-relaxed text-km-text">
                       {t('metric.loadHint', { cores: client.cpu_cores })}
                     </span>
                   </InfoPopover>
                 </p>
-                <p className="km-num text-[13px]">
-                  <b className="font-semibold">{status ? status.load.toFixed(2) : '—'}</b>
-                  <span className="mx-1 text-slate-300 dark:text-slate-600">/</span>
-                  <b className="font-semibold">{status ? status.load5.toFixed(2) : '—'}</b>
-                  <span className="mx-1 text-slate-300 dark:text-slate-600">/</span>
-                  <b className="font-semibold">{status ? status.load15.toFixed(2) : '—'}</b>
+                {/* 1 分钟值加粗，后两个降级为参考值。 */}
+                <p className="km-num text-[13px] text-km-dim">
+                  <b className="font-semibold text-km-text">
+                    {status ? status.load.toFixed(2) : '—'}
+                  </b>
+                  <span className="mx-1 text-km-faint">/</span>
+                  {status ? status.load5.toFixed(2) : '—'}
+                  <span className="mx-1 text-km-faint">/</span>
+                  {status ? status.load15.toFixed(2) : '—'}
                 </p>
               </div>
             )}
@@ -220,7 +239,7 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t km-hair pt-2 text-[12px]">
           {settings.showExpiry && (
             <span className="km-num flex items-center gap-1.5">
-              <span className="text-slate-400">{t('node.expires')}:</span>
+              <span className="text-km-faint">{t('node.expires')}:</span>
               {expiry ? (
                 <span
                   className={
@@ -234,15 +253,13 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
                   {expiry}
                 </span>
               ) : (
-                <span className="text-slate-400">
+                <span className="text-km-faint">
                   {longTerm ? t('node.longTerm') : t('node.never')}
                 </span>
               )}
               {/* 绝不显示负的天数，改成换一套措辞。 */}
               {expired && left !== null && (
-                <span className="km-pill bg-rose-500 text-white">
-                  {t('node.expired', { days: -left })}
-                </span>
+                <span className="km-pill km-pill-bad">{t('node.expired', { days: -left })}</span>
               )}
               {expiringSoon && left !== null && (
                 <span className="km-pill km-pill-warn">{t('node.remaining', { days: left })}</span>
@@ -250,8 +267,12 @@ function NodeCardInner({ node, settings, pingTasks, pingValues }: NodeCardProps)
             </span>
           )}
           <span className={`km-num ${dim}`}>
-            <span className="text-slate-400">{t('node.uptime')}:</span>{' '}
-            {formatUptime(status?.uptime)}
+            <span className="text-km-faint">{t('node.uptime')}:</span>{' '}
+            {formatUptime(status?.uptime, {
+              day: t('node.day'),
+              hour: t('node.hour'),
+              minute: t('node.minute'),
+            })}
           </span>
         </div>
       </Link>
