@@ -150,47 +150,6 @@ git push origin HEAD v0.2.0   # 推送触发发布工作流
 
 版本号不是固定的，但**标签必须与 `komari-theme.json` 的 `version` 相等**，工作流第一步就卡这个。归档名由 manifest 派生（`scripts/package.mjs`），两者不一致就会发出一个名字和版本号互相矛盾的包。`npm run bump` 存在的意义就是让这两者不可能对不上。预发布版本把两边都写成 `0.2.0-rc1` 即可。
 
-### 收录进官方主题市场
-
-只需要做一次。在 [`komari-monitor/theme-market`](https://github.com/komari-monitor/theme-market/issues/new/choose) 开 Issue，选「提交在 GitHub 中开源的主题」，填两项：
-
-| 表单字段 | 填什么 |
-| --- | --- |
-| GitHub 仓库地址 | 本仓库地址 |
-| 预览图链接 | `https://raw.githubusercontent.com/<owner>/<repo>/<默认分支>/preview.png` |
-
-**不是提 PR，也不需要手填 version / sha256 / download** —— 目录只存元数据，主题包仍由作者自己托管，那些字段由市场的 Action 从最新 Release 推导。
-
-预览图地址要指向**分支**而不是标签：目录里每个主题只有一条记录，自动更新只改 version / download / sha256，不改 preview。钉在某个标签上会把预览图永久冻在那一版。
-
-收录之后无需再管：市场每六小时检查一次本仓库的最新 Release，校验根 manifest、`short`、版本与 SHA-256 通过后自动开更新 PR。所以后续发版只要 `npm run bump` + 推标签。
-
-提交前确认三件事：
-
-- 仓库公开，且最新 Release 里有可下载的归档
-- 归档根有 `komari-theme.json`（`npm run package` 里的 `zip-check` 会验）
-- `short` 在目录里唯一，且不是 `default`
-
-### 发布失败后重试
-
-跑到建 Release 那步之后才失败的话，同名 Release 已存在，重推标签会失败。先清掉再来：
-
-```bash
-gh release delete v0.2.0 --yes
-git push origin :refs/tags/v0.2.0 && git tag -d v0.2.0
-```
-
-## 装载契约
-
-Komari 加载主题时有几条硬约束，改构建配置前先看这里（依据在 `web/public/public.go`）：
-
-- **资源前缀必须是 `/themes/minimal/dist/` 绝对路径。** 用 `./` 在 `/instance/xxx` 这类深层路由上会解析成 `/instance/assets/…`，服务端 `noRoute` 把 `index.html` 返回给它，浏览器按 MIME 拒绝执行，整页白屏。
-- **资源与页面走两条完全不同的路径。** 资源走 `/themes/:id/*path`，纯静态查找，未命中直接 404、没有 SPA 兜底；页面走 `noRoute` 返回 `dist/index.html`，请求的是站点根下的路径。所以客户端路由不设 `basename`。
-- **不能压缩 `index.html`。** Komari 用首次字符串匹配替换四个哨兵：`<title>Komari Monitor</title>`、`A simple server monitor tool.`、`</head>`、`</body>`。压缩或重排都会让注入静默失效。`index.html` 还必须是纯 ASCII 且无 BOM。
-- **chunk 文件名不能以 `_` 开头。** Go 的 `embed` 会静默跳过这类文件，装到服务端后 404，而本地 `vite preview` 一切正常。
-- **主题不能声明 `/admin` 与 `/terminal` 路由**，那两个是 Komari 内置 UI。链接过去没问题（本主题就是这么做的），但不能自己实现。
-- **页脚必须保留 `Powered by Komari Monitor.`**
-
 ## 目录结构
 
 ```
