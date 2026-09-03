@@ -43,8 +43,8 @@ function check(label, condition, detail = '') {
 
 /*
  * 断言里写死的中文文案要求页面就是中文渲染的，而无头浏览器的语言跟随宿主
- * 环境。中文机器上恰好成立，Linux CI（LANG=C.UTF-8）上 navigator 报 en，
- * detectLanguage() 会返回 'en'，这些断言集体变红。
+ * 环境：中文机器上是 zh-CN，Linux CI（LANG=C.UTF-8）上 navigator 报 en，
+ * detectLanguage() 就会返回 'en'，这批断言全部落空。
  *
  * detectLanguage() 最优先读 localStorage 的 `language` 键，所以在正式取样
  * 之前先把它钉死。视口一并钉死：页脚那几条几何断言依赖真实宽度，默认视口

@@ -51,9 +51,9 @@ const kb = ((await stat(zipName)).size / 1024).toFixed(1)
 const displayName = manifest.name?.['zh-CN'] ?? short
 
 /*
- * 说明面向的是要装主题的运营者，不是目录维护者。所以这里只放安装方式和校验
- * 用的摘要 —— 市场目录的条目字段由 theme-market 的 Action 从 Release 自己
- * 推导，作者和使用者都不需要手填，写进来只会让人以为还有一步要做。
+ * 说明面向的是要装主题的运营者，不是目录维护者。所以只放安装方式和校验用的
+ * 摘要：市场目录的条目字段由 theme-market 的 Action 从 Release 自己推导，
+ * 作者和使用者都不需要手填。
  */
 console.log(
   [

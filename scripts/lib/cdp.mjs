@@ -46,9 +46,9 @@ export async function launch(browserPath, port) {
   const profile = await mkdtemp(join(tmpdir(), 'km-cdp-'))
 
   /*
-   * 用 spawn 而不是 execFile。execFile 会把子进程的输出全部缓冲在内存里，默认
+   * 长驻进程必须用 spawn。execFile 会把子进程的输出全部缓冲在内存里，默认
    * maxBuffer 只有 1 MB，一超 Node 直接把子进程杀掉 —— Chrome 在 Linux 上
-   * stderr 相当吵，长驻几十秒足够撞上，而表现出来只是「端点没起来」。
+   * stderr 相当吵，跑几十秒足够撞上，而表现出来只是「端点没起来」。
    */
   const child = spawn(browserPath, [
     '--headless=new',
@@ -74,8 +74,7 @@ export async function launch(browserPath, port) {
    * 收着 Chrome 自己的输出，并把进程死因记下来。
    *
    * 这些信息是启动失败时唯一的线索：缺共享库、共享内存不足、端口被占，症状
-   * 全都是「端点没起来」，只有 stderr 能区分。把它丢掉就等于每次排查都要
-   * 多跑一轮 CI。
+   * 全都是「端点没起来」，只有 stderr 能区分。
    */
   let output = ''
   const collect = (chunk) => {
