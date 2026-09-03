@@ -5,7 +5,7 @@
 
 import { useTranslation } from 'react-i18next'
 
-import { THEME_URL, themeName } from '../lib/theme-meta'
+import { THEME_NAME, THEME_URL } from '../lib/theme-meta'
 
 /**
  * GitHub 品牌标记的路径数据（Simple Icons，CC0）。
@@ -25,8 +25,7 @@ interface FooterProps {
 }
 
 export default function Footer({ html }: FooterProps) {
-  const { t, i18n } = useTranslation()
-  const name = themeName(i18n.language)
+  const { t } = useTranslation()
 
   return (
     /*
@@ -54,11 +53,11 @@ export default function Footer({ html }: FooterProps) {
             target="_blank"
             /* 页脚在每个页面常驻，少了 noopener 就是把本站页面的控制权交给外站。 */
             rel="noopener noreferrer"
-            title={t('footer.source', { name })}
+            title={t('footer.source', { name: THEME_NAME })}
             className="km-footer-source inline-flex items-center gap-1 transition-colors
               hover:text-km-text"
           >
-            <span>{name}</span>
+            <span>{THEME_NAME}</span>
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-3.5">
               <path d={GITHUB_MARK} />
             </svg>

@@ -48,7 +48,7 @@ const zipName = `komari-theme-${short}-${version}.zip`
 const buffer = await readFile(zipName).catch(() => die(`找不到 ${zipName}，先跑 npm run package`))
 const sha256 = createHash('sha256').update(buffer).digest('hex')
 const kb = ((await stat(zipName)).size / 1024).toFixed(1)
-const displayName = manifest.name?.['zh-CN'] ?? short
+const displayName = manifest.name
 
 /*
  * 说明面向的是要装主题的运营者，不是目录维护者。所以只放安装方式和校验用的

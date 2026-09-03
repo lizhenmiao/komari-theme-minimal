@@ -546,13 +546,7 @@ async function main() {
       check('地址与 manifest 的 url 一致', source.href === MANIFEST.url, String(source.href))
       check('在新标签页打开', source.target === '_blank', String(source.target))
       check('带 noopener', source.rel.includes('noopener'), source.rel || '(空)')
-      /*
-       * 语种无关：manifest 里任一语言的名字出现即算渲染到了。空串必须先滤掉，
-       * 否则 includes('') 恒真，这条断言就永远不会失败。
-       */
-      const names = Object.values(MANIFEST.name).filter((n) => typeof n === 'string' && n !== '')
-      check('manifest 里有可用的主题名', names.length > 0)
-      check('链接文字含主题名', names.some((n) => source.text.includes(n)), source.text || '(空)')
+      check('链接文字含主题名', source.text.includes(MANIFEST.name), source.text || '(空)')
       /*
        * 词条缺失时 i18next 把键名原样吐出来，插值失败则留着 {{name}}。两种都
        * 会直接漏到页面上，而构建与渲染检查都不会报错。

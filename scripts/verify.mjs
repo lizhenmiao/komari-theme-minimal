@@ -144,7 +144,26 @@ for (const file of files) {
 }
 
 if (manifest) {
-  if (!manifest.name) fail(`${MANIFEST} is missing the required "name" field.`)
+  /*
+   * theme-market 的收录脚本（scripts/theme_submission.py 的
+   * required_manifest_text）对这四个字段要求 `isinstance(value, str)`，多语言
+   * 对象会被判成「缺少有效的 xxx」直接拒收。description 另有一条独立的字符串
+   * 检查。Komari 服务端两种形状都接受，所以这个约束只在收录环节暴露 —— 本地
+   * 装得上、市场收不了。
+   */
+  for (const field of ['name', 'short', 'version', 'author']) {
+    const value = manifest[field]
+    if (typeof value !== 'string' || value.trim() === '') {
+      fail(
+        `${MANIFEST} "${field}" must be a non-empty string; ` +
+          'theme-market rejects i18n objects here.',
+      )
+    }
+  }
+  if (manifest.description !== undefined && typeof manifest.description !== 'string') {
+    fail(`${MANIFEST} "description" must be a string; theme-market rejects i18n objects here.`)
+  }
+
   if (!manifest.short) fail(`${MANIFEST} is missing the required "short" field.`)
   else if (!/^[A-Za-z0-9_-]+$/.test(manifest.short)) {
     fail(`"short" allows only letters, digits, _ and -: ${manifest.short}`)

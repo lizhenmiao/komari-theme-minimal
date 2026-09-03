@@ -8,6 +8,11 @@
  * 整份 manifest 不会被打进客户端产物。Vite 默认 `json.namedExports` 为真，
  * 会为每个顶层键生成具名导出，Rollup 据此对默认导出做属性级摇树 —— 实测
  * 产物里只剩下面用到的字段，配置项的说明文案都不在。
+ *
+ * name 是纯字符串而非多语言对象：theme-market 的收录脚本
+ * （scripts/theme_submission.py 的 required_manifest_text）要求 name、
+ * description、version、author 都是字符串，多语言对象会被判为「缺少有效的
+ * name」而拒收。主题名本身是专有名词，各语种一致，这里没有损失。
  */
 
 import manifest from '../../komari-theme.json'
@@ -15,14 +20,5 @@ import manifest from '../../komari-theme.json'
 /** 主题仓库地址。 */
 export const THEME_URL: string = manifest.url
 
-/**
- * 当前语言下的主题名。
- *
- * manifest 的 name 是 i18n 对象。取不到当前语种时退到 en，再退到第一个非空
- * 值 —— 页脚少一个名字不该让整行塌掉。用 `||` 而不是 `??`：空字符串同样要
- * 继续往下退，它渲染出来和缺失没有区别。
- */
-export function themeName(language: string): string {
-  const names: Record<string, string | undefined> = manifest.name
-  return names[language] || names.en || Object.values(names).find(Boolean) || manifest.short
-}
+/** 主题名。 */
+export const THEME_NAME: string = manifest.name
