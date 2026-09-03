@@ -2,7 +2,7 @@
   "name": "Minimal",
   "short": "minimal",
   "description": "单色极简主题，柔和卡片布局，支持网格与表格双视图 / A monochrome minimal theme with soft cards and grid/table views.",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "author": "lizhenmiao",
   "url": "https://github.com/lizhenmiao/komari-theme-minimal",
   "preview": "preview.png",
