@@ -8,7 +8,7 @@
  * uPlot 真实挂载、真实 WebSocket 行为。这个脚本补上那一层。
  */
 
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { findBrowser, launch } from './lib/cdp.mjs'
@@ -22,6 +22,12 @@ const CDP_PORT = 9412
  */
 const LABEL = { admin: '管理后台', login: '登录' }
 
+/*
+ * 页脚出处入口要断言的仓库地址和主题名则相反，必须从 manifest 读：这两条抓的
+ * 就是「页面上的值和 komari-theme.json 不一致」，写死等于两边各自测自己。
+ */
+const MANIFEST = JSON.parse(await readFile(join(ROOT, 'komari-theme.json'), 'utf8'))
+
 let failures = 0
 let checks = 0
 
@@ -33,6 +39,24 @@ function check(label, condition, detail = '') {
     failures += 1
     console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ''}`)
   }
+}
+
+/*
+ * 断言里写死的中文文案要求页面就是中文渲染的，而无头浏览器的语言跟随宿主
+ * 环境。中文机器上恰好成立，Linux CI（LANG=C.UTF-8）上 navigator 报 en，
+ * detectLanguage() 会返回 'en'，这些断言集体变红。
+ *
+ * detectLanguage() 最优先读 localStorage 的 `language` 键，所以在正式取样
+ * 之前先把它钉死。视口一并钉死：页脚那几条几何断言依赖真实宽度，默认视口
+ * 尺寸不在本脚本控制之下。
+ */
+async function pinEnvironment(session, base) {
+  await session.setViewport(1600, 900)
+  await session.load(base, { waitFor: () => true })
+  await session.evaluate(`(() => {
+    localStorage.setItem('language', 'zh-CN')
+    return true
+  })()`)
 }
 
 async function main() {
@@ -54,6 +78,7 @@ async function main() {
   try {
     await waitForApi(mock.base)
     session = await launch(browserPath, CDP_PORT)
+    await pinEnvironment(session, mock.base)
 
     console.log('\n首页')
     /*
@@ -459,6 +484,113 @@ async function main() {
       localStorage.setItem('km-minimal-view', 'grid')
       return true
     })()`)
+
+    /*
+     * 页脚的主题出处入口。
+     *
+     * 只断言「HTML 里有 github.com」是不够的：链接可能落在页脚之外、图标可能
+     * 因为 svg 没有尺寸而不可见、路径数据可能被改坏。这里查的是渲染后的实际
+     * 结果 —— 元素归属、外链属性、图标和路径的实测尺寸。
+     *
+     * 另外量了页脚整行的几何。<footer> 是 .km-layout（flex flex-col）的弹性
+     * 子项，交叉轴上的 auto 外边距会吸走剩余空间并压掉 stretch，页脚会缩成
+     * 内容宽度飘在中间、justify-between 失去可分配的空间。这种塌陷在 HTML
+     * 字符串里看不出来，只能量。
+     */
+    console.log('\n页脚出处入口')
+    const source = await session.evaluate(`(() => {
+      const footer = document.querySelector('.km-footer')
+      if (!footer) return { error: '页面上没有页脚' }
+      const link = footer.querySelector('a.km-footer-source')
+      if (!link) return { error: '页脚里没有出处链接' }
+      const svg = link.querySelector('svg')
+      const path = svg ? svg.querySelector('path') : null
+      const box = svg ? svg.getBoundingClientRect() : null
+      const mark = path ? path.getBBox() : null
+      const rect = (el) => (el ? el.getBoundingClientRect() : null)
+      const row = footer.firstElementChild
+      const rowBox = rect(row)
+      const creditBox = rect(row.querySelector('p'))
+      const customBox = rect(row.querySelector('.km-footer-custom'))
+      /*
+       * 正文的内容边缘。页脚和 <main> 用的是同一套 max-width 与内边距，所以
+       * 两者的左右缘必须重合 —— 直接比视口宽度是错的，超过 1560px 之后行宽
+       * 被 max-width 限住，和视口再无关系。
+       */
+      const main = document.querySelector('.km-main')
+      const mainBox = rect(main)
+      const mainStyle = main ? getComputedStyle(main) : null
+      return {
+        href: link.getAttribute('href'),
+        target: link.getAttribute('target'),
+        rel: link.getAttribute('rel') || '',
+        title: link.getAttribute('title') || '',
+        text: link.innerText.trim(),
+        iconWidth: box ? Math.round(box.width) : 0,
+        markWidth: mark ? Math.round(mark.width) : 0,
+        rowLeft: rowBox ? Math.round(rowBox.left) : 0,
+        rowRight: rowBox ? Math.round(rowBox.right) : 0,
+        mainLeft: mainBox ? Math.round(mainBox.left + parseFloat(mainStyle.paddingLeft)) : -1,
+        mainRight: mainBox ? Math.round(mainBox.right - parseFloat(mainStyle.paddingRight)) : -1,
+        hasCustom: Boolean(customBox),
+        // 出处块右缘到自定义块左缘的空隙，两者真的分列两端时会很大
+        split: customBox && creditBox ? Math.round(customBox.left - creditBox.right) : 0,
+        customToRowRight: customBox && rowBox ? Math.round(rowBox.right - customBox.right) : -1,
+      }
+    })()`)
+
+    if (source.error) {
+      check('页脚有仓库入口', false, source.error)
+    } else {
+      check('页脚有仓库入口', true)
+      check('地址与 manifest 的 url 一致', source.href === MANIFEST.url, String(source.href))
+      check('在新标签页打开', source.target === '_blank', String(source.target))
+      check('带 noopener', source.rel.includes('noopener'), source.rel || '(空)')
+      /*
+       * 语种无关：manifest 里任一语言的名字出现即算渲染到了。空串必须先滤掉，
+       * 否则 includes('') 恒真，这条断言就永远不会失败。
+       */
+      const names = Object.values(MANIFEST.name).filter((n) => typeof n === 'string' && n !== '')
+      check('manifest 里有可用的主题名', names.length > 0)
+      check('链接文字含主题名', names.some((n) => source.text.includes(n)), source.text || '(空)')
+      /*
+       * 词条缺失时 i18next 把键名原样吐出来，插值失败则留着 {{name}}。两种都
+       * 会直接漏到页面上，而构建与渲染检查都不会报错。
+       */
+      check(
+        '无障碍名称已翻译并完成插值',
+        source.title !== '' && source.title !== 'footer.source' && !source.title.includes('{{'),
+        source.title || '(空)',
+      )
+      /*
+       * 图标尺寸卡上下界，不是只卡「大于 0」。内联 svg 没有显式尺寸时会回落到
+       * CSS 默认的 300x150 —— 那种情况下「大于 0」照样通过，页脚却已经被一个
+       * 巨大的图标撑坏。
+       */
+      check('图标尺寸在正文字号量级', source.iconWidth >= 10 && source.iconWidth <= 24, `${source.iconWidth}px`)
+      check('图标路径不是空的', source.markWidth > 0, `${source.markWidth}px`)
+
+      // 页脚没有塌成内容宽度：左右缘必须与正文重合
+      check(
+        '页脚左缘与正文对齐',
+        source.rowLeft === source.mainLeft,
+        `页脚 ${source.rowLeft}px，正文 ${source.mainLeft}px`,
+      )
+      check(
+        '页脚右缘与正文对齐',
+        source.rowRight === source.mainRight,
+        `页脚 ${source.rowRight}px，正文 ${source.mainRight}px`,
+      )
+      check('假服务端提供了自定义页脚', source.hasCustom)
+      if (source.hasCustom) {
+        check('出处与自定义内容分列两端', source.split > 300, `空隙 ${source.split}px`)
+        check(
+          '自定义内容贴住右缘',
+          source.customToRowRight >= 0 && source.customToRowRight <= 2,
+          `距右缘 ${source.customToRowRight}px`,
+        )
+      }
+    }
   } finally {
     if (session) await session.close()
     mock.stop()
@@ -476,6 +608,7 @@ async function main() {
   try {
     await waitForApi(guestMock.base)
     guestSession = await launch(browserPath, CDP_PORT + 1)
+    await pinEnvironment(guestSession, guestMock.base)
     const guestHome = await guestSession.load(guestMock.base, {
       waitFor: (html) => html.includes('km-auth-entry'),
     })

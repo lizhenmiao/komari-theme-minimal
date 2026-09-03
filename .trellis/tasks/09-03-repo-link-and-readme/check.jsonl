@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "校验分层与断言必须可失败的要求"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "核对 Footer 改动是否符合组件规范与中文注释要求"}

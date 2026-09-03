@@ -1,0 +1,36 @@
+name: ci
+
+# 每次推送与 PR 都跑一遍完整校验。
+#
+# release.yml 只在推 v* 标签时触发，也就是说那条路径在发版之前从来没被执行过。
+# 而校验脚本对运行环境是敏感的（浏览器可用性、语言），只在开发机上绿不代表在
+# Linux 上绿。这个工作流让发布流程用到的每一步都提前在同样的环境里跑到。
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # browser-check 找不到浏览器时只打印「跳过」并以 0 退出，静默跳过等于这层
+      # 校验没跑。先显式确认它在。
+      - name: 确认运行器带 Chrome
+        run: test -x /usr/bin/google-chrome
+
+      - run: npm test
+      - run: npm run browser
+      - run: npm run package

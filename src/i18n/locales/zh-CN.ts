@@ -96,5 +96,6 @@ export default {
   },
   footer: {
     credit: 'Powered by Komari Monitor.',
+    source: '在 GitHub 上查看 {{name}} 源码',
   },
 } as const

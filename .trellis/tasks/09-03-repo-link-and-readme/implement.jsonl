@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Footer 组件改动要遵守既有的组件写法与注释规范"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "构建期注入的常量需要补类型声明，遵守项目的类型约束"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "主题名与仓库地址必须单一来源，不得在前端再抄一份"}

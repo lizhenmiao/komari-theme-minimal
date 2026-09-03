@@ -1,0 +1,53 @@
+name: release
+
+# 推 v* 标签时构建、校验、打包，并建带归档的 Release。
+on:
+  push:
+    tags:
+      - 'v*'
+
+# 只需要写 Release 与资产，不给其他权限。
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # 先卡版本，不一致就别浪费一整轮构建。
+      - name: 校验标签与 manifest 版本一致
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/release-entry.mjs check "$TAG"
+
+      - run: npm ci
+
+      # browser-check 找不到浏览器时只打印「跳过」并以 0 退出。发布路径上静默
+      # 跳过等于这一层校验根本没跑，所以先显式确认浏览器在。
+      - name: 确认运行器带 Chrome
+        run: test -x /usr/bin/google-chrome
+
+      - run: npm test
+      - run: npm run browser
+      - run: npm run package
+
+      - name: 生成 Release 说明
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: node scripts/release-entry.mjs notes "$TAG" "$REPO" > release-notes.md
+
+      - name: 建 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ZIP: ${{ steps.notes.outputs.zip }}
+        run: gh release create "$TAG" "$ZIP" --title "$TAG" --notes-file release-notes.md

@@ -19,6 +19,7 @@
     "test": "npm run format:check && npm run smoke && npm run render && npm run render:no-rpc2 && npm run render:no-metrics && npm run dev:check",
     "icons": "node scripts/fetch-os-icons.mjs",
     "flags": "node scripts/fetch-flags.mjs",
+    "bump": "node scripts/bump.mjs",
     "package": "npm run build && npm run verify && node scripts/package.mjs && node scripts/zip-check.mjs"
   },
   "dependencies": {
