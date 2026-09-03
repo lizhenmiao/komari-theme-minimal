@@ -10,7 +10,7 @@
     "zh-TW": "單色極簡主題，柔和卡片佈局，支援網格與表格雙檢視。",
     "en": "A monochrome minimal theme with soft cards and grid/table views."
   },
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "lizhenmiao",
   "url": "https://github.com/lizhenmiao/komari-theme-minimal",
   "preview": "preview.png",
