@@ -25,9 +25,19 @@ export function formatBytes(n: number, short = false): string {
   return short ? `${value.toFixed(digits)}${unit}` : `${value.toFixed(digits)} ${unit}`
 }
 
-/** `net_in` / `net_out` 的单位是 bit/s，展示时换成 byte/s。 */
-export function formatSpeed(bitsPerSecond: number): string {
-  return `${formatBytes(bitsPerSecond / 8, true)}/s`
+/**
+ * 瞬时网速。
+ *
+ * `net_in` / `net_out` 已经是 **byte/s**，直接按字节格式化、补上 `/s` 即可，
+ * 不要再除以 8。
+ *
+ * 依据：服务端 `internal/metricstore/definitions.go` 把 `net.in.rate` /
+ * `net.out.rate` 的单位定义为 `bytes/s`；实时状态里的 `NetIn` / `NetOut`
+ * （`web/rpc/jsonrpc/common.go`）取自同一个 `rep.Network.Down` / `Up`，单位一致。
+ * 旧实现当成 bit/s 除以 8，使显示值只有真实值的 1/8。
+ */
+export function formatSpeed(bytesPerSecond: number): string {
+  return `${formatBytes(bytesPerSecond, true)}/s`
 }
 
 export function formatPercent(n: number, digits = 0): string {

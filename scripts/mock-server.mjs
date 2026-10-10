@@ -4,6 +4,8 @@
  *   node scripts/mock-server.mjs [端口]        默认 4928，传 0 由系统分配
  *   node scripts/mock-server.mjs --no-rpc2     强制走 REST + /api/clients
  *   node scripts/mock-server.mjs --no-metrics  强制走 getRecords 历史路径
+ *   node scripts/mock-server.mjs --style=vercel  指定界面风格（classic/vercel/apple）
+ *   node scripts/mock-server.mjs --freeze        冻结时钟，数值不再随时间变化
  *
  * 提供构建产物 dist/，以及足够跑通每条数据路径的接口：
  *
@@ -27,9 +29,41 @@ const noRpc2 = args.includes('--no-rpc2')
 const noMetrics = args.includes('--no-metrics')
 /** 切成未登录访客，用来验证后台入口被隐藏。 */
 const guestMode = args.includes('--guest')
+/*
+ * 界面风格。检查脚本要对三套皮肤各跑一遍同一批断言，所以风格必须能从命令行
+ * 指定 —— 不传就用 manifest 的默认值，和真实服务端补默认值的行为一致。
+ */
+const SKINS = ['classic', 'vercel', 'apple']
+const styleArg = args.find((a) => a.startsWith('--style='))?.slice('--style='.length)
+if (styleArg !== undefined && !SKINS.includes(styleArg)) {
+  console.error(`--style 只能是 ${SKINS.join(' / ')}，收到 ${JSON.stringify(styleArg)}`)
+  process.exit(1)
+}
+const style = styleArg ?? 'apple'
+/** 关掉「需要注意」板块，验证 showAttention=false 的分支。 */
+const noAttention = args.includes('--no-attention')
+/*
+ * 冻结时钟。
+ *
+ * 合成指标是时间的函数，所以同一个页面隔几秒截两张图，每个百分比都会变 ——
+ * 想做「改动前后逐像素比对」就完全没法比。传 --freeze 之后所有取时间的地方
+ * 都返回同一个固定时刻，两次渲染的数值一模一样，差异就只剩真正的视觉改动。
+ *
+ * 固定值取一个整的 unix 毫秒，不取「启动那一刻」—— 后者在两次进程之间仍然
+ * 不同。
+ *
+ * 代价：主题里由「浏览器当前时间 − 服务端给的时刻」算出来的量会变得很离谱，
+ * 最明显的是离线节点的「离线多久」—— 冻结时刻落在过去，于是显示成好几百天。
+ * 那是本开关的产物，不是缺陷；要看这类读数就别加 --freeze。
+ */
+const FROZEN_NOW = args.includes('--freeze') ? 1_760_400_000_000 : null
+const now = () => FROZEN_NOW ?? Date.now()
 const port = Number(args.find((a) => /^\d+$/.test(a)) ?? 4928)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const DIST = join(ROOT, 'dist')
+
+/** 离线节点「最后上报」距今多久。固定值，断言才好写。 */
+const OFFLINE_FOR_MS = 3 * 3600 * 1000 + 14 * 60 * 1000
 
 const GB = 1024 ** 3
 const MB = 1024 ** 2
@@ -176,6 +210,9 @@ const PING_TASKS = [
 ]
 
 const THEME_SETTINGS = {
+  style,
+  defaultAppearance: 'system',
+  showAttention: !noAttention,
   defaultView: 'grid',
   refreshInterval: 2,
   showDisk: true,
@@ -197,7 +234,7 @@ const THEME_SETTINGS = {
 /* ------------------------------------------------------------------ */
 
 /** 按 (uuid, seed) 确定性生成，让数值平滑变化而不是乱跳。 */
-function wobble(uuid, seed, base, amplitude, t = Date.now() / 1000) {
+function wobble(uuid, seed, base, amplitude, t = now() / 1000) {
   let h = 0
   for (let i = 0; i < uuid.length; i += 1) h = (h * 31 + uuid.charCodeAt(i)) % 1000
   const phase = (h + seed * 97) / 40
@@ -206,7 +243,7 @@ function wobble(uuid, seed, base, amplitude, t = Date.now() / 1000) {
   return Math.max(0, base + (slow * 0.65 + fast * 0.35) * amplitude)
 }
 
-function statusFor(node, at = Date.now()) {
+function statusFor(node, at = now()) {
   const t = at / 1000
   const offline = node._offline
   const cpu = offline ? 0 : Math.min(wobble(node.uuid, 1, 42, 34, t), 100)
@@ -215,9 +252,18 @@ function statusFor(node, at = Date.now()) {
   const swapPct = node.swap_total > 0 && !offline ? Math.min(wobble(node.uuid, 4, 18, 14, t), 99) : 0
   // 累计计数器只能单调递增。
   const elapsed = Math.max(0, at / 1000 - 1_760_000_000)
+  /*
+   * 离线节点的 `time` 必须是过去的时刻。
+   *
+   * 真实服务端这里填的是 `rep.UpdatedAt`（见 .tmp/komari 的
+   * web/rpc/jsonrpc/common.go `appendOne`），也就是最后一次上报时间 ——
+   * 节点掉线后它就停住了。假服务端原来一律填当前时间，主题据此算出的
+   * 「离线多久」永远是 0，整条分支等于没测。
+   */
+  const reportedAt = offline ? at - OFFLINE_FOR_MS : at
   return {
     client: node.uuid,
-    time: new Date(at).toISOString(),
+    time: new Date(reportedAt).toISOString(),
     online: !offline,
     cpu,
     gpu: node.gpu_name === 'None' ? 0 : wobble(node.uuid, 9, 30, 25, t),
@@ -231,8 +277,11 @@ function statusFor(node, at = Date.now()) {
     load5: offline ? 0 : wobble(node.uuid, 6, node.cpu_cores * 0.38, node.cpu_cores * 0.3, t),
     load15: offline ? 0 : wobble(node.uuid, 7, node.cpu_cores * 0.34, node.cpu_cores * 0.25, t),
     temp: offline ? 0 : wobble(node.uuid, 8, 48, 12, t),
-    net_in: offline ? 0 : Math.round(wobble(node.uuid, 10, 4.2e7, 4e7, t)),
-    net_out: offline ? 0 : Math.round(wobble(node.uuid, 11, 1.8e7, 1.6e7, t)),
+    // net_in / net_out 的单位是 byte/s（和服务端 net.in.rate 定义一致），
+    // 主题直接按字节显示、补 /s，不再除以 8。这里给到约 1-9 MB/s 下行、
+    // 0.4-3.6 MB/s 上行，是常见小服务器的量级。
+    net_in: offline ? 0 : Math.round(wobble(node.uuid, 10, 5e6, 4e6, t)),
+    net_out: offline ? 0 : Math.round(wobble(node.uuid, 11, 2e6, 1.6e6, t)),
     net_total_up: Math.round(elapsed * 4200 + node.weight * 1e9),
     net_total_down: Math.round(elapsed * 9100 + node.weight * 2.4e9),
     process: offline ? 0 : Math.round(wobble(node.uuid, 12, 180, 90, t)),
@@ -312,7 +361,7 @@ const METRIC_VALUE = {
 function metricSeries(uuids, metricKeys, hours, maxPoints) {
   const points = Math.min(maxPoints, Math.max(30, Math.round(hours * 30)))
   const stepMs = (hours * 3600 * 1000) / points
-  const end = Date.now()
+  const end = now()
   const series = []
 
   const push = (key, uuid, list) => {
@@ -382,7 +431,7 @@ function statusHistory(uuid, hours, maxPoints) {
   if (!node) return []
   const points = Math.min(maxPoints, Math.max(30, Math.round(hours * 30)))
   const stepMs = (hours * 3600 * 1000) / points
-  const end = Date.now()
+  const end = now()
   const out = []
   for (let i = points; i >= 0; i -= 1) {
     const at = end - i * stepMs
@@ -424,7 +473,7 @@ function pingPoints(uuid, taskId, hours, maxPoints) {
   if (!node) return []
   const points = Math.min(maxPoints, Math.max(20, Math.round(hours * 20)))
   const stepMs = (hours * 3600 * 1000) / points
-  const end = Date.now()
+  const end = now()
   const out = []
   for (let i = points; i >= 0; i -= 1) {
     const at = end - i * stepMs
@@ -474,7 +523,7 @@ function pingStats(uuids, taskIds, hours, maxPoints) {
     }
   }
   return {
-    start: new Date(Date.now() - hours * 3600 * 1000).toISOString(),
+    start: new Date(now() - hours * 3600 * 1000).toISOString(),
     end: new Date().toISOString(),
     interval_seconds: (hours * 3600) / Math.max(1, Math.min(maxPoints, 20)),
     stats,
@@ -540,7 +589,7 @@ function handleRpc(method, params = {}) {
       return {
         count,
         records,
-        from: new Date(Date.now() - hours * 3600 * 1000).toISOString(),
+        from: new Date(now() - hours * 3600 * 1000).toISOString(),
         to: new Date().toISOString(),
       }
     }

@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>风格样张 / Apple</title>
+    <script>
+      try {
+        const q = new URLSearchParams(location.search).get('theme')
+        if ((q || localStorage.getItem('km-style-apple')) === 'dark')
+          document.documentElement.classList.add('dark')
+      } catch {}
+    </script>
+    <style>
+      /* ============================================================
+       * 风格样张：Apple
+       * 浅灰底 + 白色大圆角卡片，毛玻璃导航，大号粗标题，iOS 分段控件，
+       * Apple Watch 式三环（CPU / 内存 / 磁盘）。环色用系统蓝 / 靛 / 青，
+       * 越过 75% 变橙、越过 90% 变红 —— 仍然是「出事才响」。
+       * Mac 上用 SF Pro，其他平台退到 Inter。
+       * ============================================================ */
+      @font-face {
+        font-family: 'Inter';
+        src: url('fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      :root {
+        --bg: #f5f5f7;
+        --card: #ffffff;
+        --text: #1d1d1f;
+        --muted: #6e6e73;
+        --fill: #e8e8ed;
+        --sep: rgb(0 0 0 / 0.08);
+        --glass: rgb(255 255 255 / 0.72);
+        --red: #ff3b30;
+        --red-t: #d70015;
+        --orange: #ff9500;
+        --orange-t: #b25000;
+        --green: #34c759;
+        --green-t: #248a3d;
+        --blue: #007aff;
+        --indigo: #5856d6;
+        --teal: #32ade6;
+        --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 28px rgb(0 0 0 / 0.05);
+        color-scheme: light;
+      }
+      .dark {
+        --bg: #000000;
+        --card: #1c1c1e;
+        --text: #f5f5f7;
+        --muted: #98989d;
+        --fill: #2c2c2e;
+        --sep: rgb(255 255 255 / 0.1);
+        --glass: rgb(22 22 23 / 0.72);
+        --red: #ff453a;
+        --red-t: #ff6961;
+        --orange: #ff9f0a;
+        --orange-t: #ffb340;
+        --green: #30d158;
+        --green-t: #30d158;
+        --blue: #0a84ff;
+        --indigo: #5e5ce6;
+        --teal: #64d2ff;
+        --shadow: none;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.47 -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        letter-spacing: -0.01em;
+        -webkit-font-smoothing: antialiased;
+        padding-bottom: 96px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      :focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--blue) 55%, transparent);
+        outline-offset: 2px;
+        border-radius: 12px;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 28px;
+      }
+
+      /* ---------- 毛玻璃导航 ---------- */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--glass);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        border-bottom: 1px solid var(--sep);
+      }
+      .nav-in {
+        display: flex;
+        align-items: center;
+        height: 52px;
+        gap: 28px;
+      }
+      .brand {
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .links {
+        display: flex;
+        gap: 26px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .links a[aria-current] {
+        color: var(--text);
+      }
+      .nav .theme {
+        margin-left: auto;
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 50%;
+        background: var(--fill);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+      }
+
+      /* ---------- 大标题 ---------- */
+      .hero {
+        padding: 56px 0 30px;
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: 48px;
+        line-height: 1.08;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .hero p {
+        margin: 10px 0 0;
+        font-size: 21px;
+        line-height: 1.38;
+        color: var(--muted);
+        font-weight: 500;
+        letter-spacing: -0.015em;
+      }
+
+      /* ---------- 小组件 ---------- */
+      .widgets {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .w {
+        background: var(--card);
+        border-radius: 24px;
+        padding: 22px 24px;
+        box-shadow: var(--shadow);
+        min-width: 0;
+      }
+      .w-t {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .w-online {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .w-online .big {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+      }
+      .w-online .big small {
+        font-size: 17px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .w-bw .big {
+        margin-top: 8px;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+      }
+      .w-bw .big small,
+      .w-bw .sm small {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-left: 3px;
+      }
+      .w-bw .sm {
+        margin-top: 6px;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .w-bw .arrow {
+        color: var(--muted);
+        font-weight: 500;
+        margin-right: 4px;
+      }
+      .w-att {
+        grid-column: span 2;
+      }
+      .att {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 20px;
+      }
+      .att li a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .att .ico {
+        flex: none;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: var(--red);
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .att .warm .ico {
+        background: var(--orange);
+      }
+      .att .tx {
+        min-width: 0;
+        line-height: 1.3;
+      }
+      .att .tx b {
+        display: block;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .att .tx span {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ---------- 分段控件 ---------- */
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        margin: 52px 0 20px;
+      }
+      .bar h2 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .segmented {
+        margin-left: auto;
+        display: inline-flex;
+        flex-wrap: wrap;
+        padding: 2px;
+        border-radius: 9px;
+        background: var(--fill);
+      }
+      .segmented button {
+        min-width: 64px;
+        height: 30px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 7px;
+        background: none;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .segmented button[aria-pressed='true'] {
+        background: var(--card);
+        box-shadow: 0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04);
+      }
+
+      /* ---------- 节点卡片 ---------- */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
+        gap: 20px;
+      }
+      .card {
+        display: block;
+        background: var(--card);
+        border-radius: 24px;
+        padding: 20px 22px 18px;
+        box-shadow: var(--shadow);
+        transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .card:hover {
+        transform: scale(1.015);
+      }
+      .c-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .flag {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex: none;
+      }
+      .region-text {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--fill);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        flex: none;
+      }
+      .c-top > div {
+        min-width: 0;
+        flex: 1;
+      }
+      .c-name {
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .c-sub {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cap {
+        flex: none;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--green-t);
+        background: color-mix(in srgb, var(--green) 14%, transparent);
+      }
+      .cap.hot {
+        color: var(--red-t);
+        background: color-mix(in srgb, var(--red) 13%, transparent);
+      }
+      .cap.warm {
+        color: var(--orange-t);
+        background: color-mix(in srgb, var(--orange) 15%, transparent);
+      }
+      .cap.off {
+        color: var(--muted);
+        background: var(--fill);
+      }
+      .c-mid {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin: 16px 0 14px;
+      }
+      .c-mid svg {
+        flex: none;
+      }
+      .legend {
+        flex: 1;
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .legend div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .legend .lb {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+        min-width: 0;
+      }
+      .legend .lb small {
+        font-size: 11px;
+        color: var(--muted);
+        opacity: 0.85;
+        white-space: nowrap;
+      }
+      .legend {
+        gap: 7px !important;
+      }
+      .legend i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .legend b {
+        margin-left: auto;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: -0.02em;
+      }
+      .legend b.hot {
+        color: var(--red-t);
+      }
+      .legend b.warm {
+        color: var(--orange-t);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chips span {
+        padding: 5px 10px;
+        border-radius: 10px;
+        background: var(--bg);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .dark .chips span {
+        background: var(--fill);
+      }
+      .chips b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .ilist {
+        list-style: none;
+        margin: 0;
+        padding: 0 14px;
+        border-radius: 14px;
+        background: var(--bg);
+      }
+      .dark .ilist {
+        background: var(--fill);
+      }
+      .ilist li {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 9px 0;
+        font-size: 13px;
+        border-top: 1px solid var(--sep);
+      }
+      .ilist li:first-child {
+        border-top: 0;
+      }
+      .ilist li > span {
+        color: var(--muted);
+        flex: none;
+      }
+      .ilist b {
+        margin-left: auto;
+        text-align: right;
+        font-weight: 600;
+        min-width: 0;
+      }
+      .ilist b small {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        margin-right: 8px;
+      }
+      .ilist .hot {
+        color: var(--red-t);
+      }
+      .ilist .warm {
+        color: var(--orange-t);
+      }
+      .card.off .c-mid,
+      .card.off .ilist {
+        opacity: 0.4;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+      .segmented.views {
+        margin-left: 0;
+      }
+      .views button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      /* 表格：白色大圆角卡片里的列表 */
+      .tablewrap {
+        overflow-x: auto;
+        border-radius: 24px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+      table.t {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .t th {
+        padding: 16px 10px 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-align: left;
+        white-space: nowrap;
+      }
+      .t td {
+        padding: 11px 10px;
+        border-top: 1px solid var(--sep);
+        white-space: nowrap;
+        vertical-align: middle;
+        line-height: 1.4;
+      }
+      .t tbody tr:hover td {
+        background: color-mix(in srgb, var(--fill) 45%, transparent);
+      }
+      .t .hot {
+        color: var(--red-t);
+      }
+      .t .warm {
+        color: var(--orange-t);
+      }
+      .t-faint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .t-who b {
+        font-weight: 600;
+      }
+      .t-who span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .t-state {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--green-t);
+        background: color-mix(in srgb, var(--green) 14%, transparent);
+      }
+      .t-state i {
+        display: none;
+      }
+      .t-state.off,
+      .t-state.hot {
+        color: var(--red-t);
+        background: color-mix(in srgb, var(--red) 13%, transparent);
+      }
+      .t-state.warm {
+        color: var(--orange-t);
+        background: color-mix(in srgb, var(--orange) 15%, transparent);
+      }
+      .t-bar {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--fill);
+      }
+      .t-bar i {
+        background: var(--blue);
+      }
+      .t-bar i.warm {
+        background: var(--orange);
+      }
+      .t-bar i.hot {
+        background: var(--red);
+      }
+
+      .t tbody tr {
+        cursor: pointer;
+      }
+      .t .r {
+        text-align: right;
+      }
+      .t-who {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .t-who .flag,
+      .t-who .region-text {
+        width: 26px;
+        height: 26px;
+      }
+      .t-who b {
+        display: block;
+      }
+      .t-m {
+        display: grid;
+        grid-template-columns: 36px 44px;
+        align-items: center;
+        gap: 8px;
+      }
+      .t-m b {
+        font-weight: 600;
+        text-align: right;
+      }
+      .t-bar {
+        display: block;
+        overflow: hidden;
+      }
+      .t-bar i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+      }
+
+      @media (max-width: 980px) {
+        .widgets {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 600px) {
+        .wrap {
+          padding: 0 18px;
+        }
+        .links {
+          display: none;
+        }
+        .hero {
+          padding-top: 36px;
+        }
+        .hero h1 {
+          font-size: 36px;
+        }
+        .hero p {
+          font-size: 18px;
+        }
+        .widgets {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .w-att {
+          grid-column: auto;
+        }
+        .att {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .segmented {
+          margin-left: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-in">
+        <span class="brand">Komari</span>
+        <nav class="links" aria-label="页面"><a href="#" aria-current="page">概览</a><a href="#">节点</a><a href="#">延迟</a><a href="#">流量</a></nav>
+        <button type="button" class="theme" id="theme" aria-label="切换外观"></button>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <h1>概览</h1>
+        <p id="sub"></p>
+      </section>
+
+      <section class="widgets" id="widgets" aria-label="摘要"></section>
+
+      <div class="bar">
+        <h2>所有节点</h2>
+        <div class="segmented" id="seg" role="group" aria-label="分组"></div>
+        <div class="segmented views" id="views" role="group" aria-label="视图"><button type="button" data-v="grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>卡片</button><button type="button" data-v="table"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3.5 6h17M3.5 12h17M3.5 18h17"/></svg>表格</button></div>
+      </div>
+      <section class="grid" id="grid"></section>
+      <section class="tablewrap" id="tbl" hidden></section>
+    </main>
+
+    <script src="data.js"></script>
+    <script src="core.js"></script>
+    <script>
+      ;(function () {
+        'use strict'
+        const R = window.RACK
+        const { NODES, PING_TASKS, esc } = R
+        let group = ''
+
+        const SUN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+        const MOON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>'
+        const themeBtn = document.getElementById('theme')
+        const sync = () => (themeBtn.innerHTML = document.documentElement.classList.contains('dark') ? SUN : MOON)
+        themeBtn.addEventListener('click', () => {
+          const d = document.documentElement.classList.toggle('dark')
+          localStorage.setItem('km-style-apple', d ? 'dark' : 'light')
+          sync()
+        })
+        sync()
+
+        const groups = [...new Set(NODES.map((n) => n.group).filter(Boolean))]
+        const seg = document.getElementById('seg')
+        seg.innerHTML = ['', ...groups].map((g) => `<button type="button" data-g="${esc(g)}" aria-pressed="${g === group}">${esc(g || '全部')}</button>`).join('')
+        seg.addEventListener('click', (e) => {
+          const b = e.target.closest('button')
+          if (!b) return
+          group = b.dataset.g
+          for (const x of seg.children) x.setAttribute('aria-pressed', String(x.dataset.g === group))
+          render()
+        })
+
+        /** 越过阈值的环换成橙 / 红，其余用系统蓝、靛、青。 */
+        const ringColor = (p, base) => (p >= R.HOT_AT ? 'var(--red)' : p >= R.WARN_AT ? 'var(--orange)' : base)
+        const cls = (p) => (p >= R.HOT_AT ? 'hot' : p >= R.WARN_AT ? 'warm' : '')
+
+        /** Apple Watch 式同心环。轨道是同色 18% 透明，进度圆头。 */
+        function rings(items, size = 92, stroke = 9, gap = 2.5) {
+          const c = size / 2
+          let out = ''
+          items.forEach(([p, color], i) => {
+            const r = c - stroke / 2 - i * (stroke + gap)
+            const len = 2 * Math.PI * r
+            const v = p == null ? 0 : Math.max(0.5, Math.min(100, p))
+            out += `<circle cx="${c}" cy="${c}" r="${r}" fill="none" style="stroke:${color};stroke-opacity:.18" stroke-width="${stroke}"/>`
+            // 没有数据时不画进度弧：长度为 0 的圆头线帽会显示成一个点
+            if (p != null) out += `<circle cx="${c}" cy="${c}" r="${r}" fill="none" style="stroke:${color}" stroke-width="${stroke}" stroke-linecap="round"
+              stroke-dasharray="${((v / 100) * len).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>`
+          })
+          return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">${out}</svg>`
+        }
+
+
+        // ---------- 卡片 / 表格 ----------
+        const VIEW_KEY = 'km-style-view'
+        let view = localStorage.getItem(VIEW_KEY) || 'grid'
+        const viewsEl = document.getElementById('views')
+        const syncView = () => {
+          for (const b of viewsEl.children) b.setAttribute('aria-pressed', String(b.dataset.v === view))
+          document.getElementById('grid').hidden = view !== 'grid'
+          document.getElementById('tbl').hidden = view !== 'table'
+        }
+        viewsEl.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-v]')
+          if (!b) return
+          view = b.dataset.v
+          localStorage.setItem(VIEW_KEY, view)
+          syncView()
+          render()
+        })
+        window.CORE.bindTable(document.getElementById('tbl'))
+
+        function render() {
+          const vals = new Map(NODES.map((n) => [n.uuid, R.live(n)]))
+          const on = NODES.filter((n) => vals.get(n.uuid).online).length
+          let up = 0
+          let down = 0
+          for (const v of vals.values()) {
+            up += v.up
+            down += v.down
+          }
+          const att = []
+          for (const n of NODES) {
+            const list = R.issues(n, vals.get(n.uuid)).filter((i) => !i.minor)
+            if (list.length) att.push({ n, lv: list.some((i) => i.lv === 'hot') ? 'hot' : 'warm', why: list.map((i) => i.short).join('，') })
+          }
+          att.sort((a, b) => (a.lv === b.lv ? 0 : a.lv === 'hot' ? -1 : 1))
+
+          document.getElementById('sub').textContent = att.length
+            ? `${on} 台在线。有 ${att.length} 台需要你看一眼。`
+            : `${on} 台在线，一切正常。`
+
+          const [dn, du] = R.fmtBytes(down)
+          const [un, uu] = R.fmtBytes(up)
+          const shownAtt = att.slice(0, 6)
+          document.getElementById('widgets').innerHTML = `
+            <div class="w"><div class="w-t">在线</div>
+              <div class="w-online" style="margin-top:12px">${rings([[(on / NODES.length) * 100, 'var(--green)']], 72, 10)}
+                <div class="big num">${on}<small> / ${NODES.length}</small></div></div></div>
+            <div class="w w-bw"><div class="w-t">实时带宽</div>
+              <div class="big num"><span class="arrow">↓</span>${dn}<small>${du}B/s</small></div>
+              <div class="sm num"><span class="arrow">↑</span>${un}<small>${uu}B/s</small></div></div>
+            <div class="w w-att"><div class="w-t">需要注意</div>
+              <ul class="att">${shownAtt
+                .map((a) => `<li class="${a.lv}"><a href="apple-detail.html?id=${a.n.uuid}"><span class="ico" aria-hidden="true">!</span><span class="tx"><b>${esc(a.n.name)}</b><span>${esc(a.why)}</span></span></a></li>`)
+                .join('')}</ul></div>`
+
+          if (view === 'table') document.getElementById('tbl').innerHTML = window.CORE.table(NODES.filter((n) => !group || n.group === group), vals, 'apple-detail.html')
+          document.getElementById('grid').innerHTML = NODES.filter((n) => !group || n.group === group)
+            .map((n) => {
+              const v = vals.get(n.uuid)
+              const list = R.issues(n, v).filter((i) => !i.minor)
+              const cap = !v.online
+                ? `<span class="cap off">离线</span>`
+                : list.length
+                  ? `<span class="cap ${list[0].lv}">${esc(list[0].short)}</span>`
+                  : `<span class="cap">在线</span>`
+              const pct = (p) => (p == null ? '—' : Math.round(p) + '%')
+              const B = (b) => R.bytesText(b, 'B')
+              const cC = ringColor(v.cpu, 'var(--blue)')
+              const mC = ringColor(v.mem, 'var(--indigo)')
+              const dC = ringColor(v.disk, 'var(--teal)')
+              const leg = (c, label, p, sub) =>
+                `<div><i style="background:${c}"></i><span class="lb">${label}<small>${sub}</small></span><b class="${cls(p)}">${pct(p)}</b></div>`
+
+              // iOS 设置里那种分组列表：左标签、右数值
+              const rows = []
+              const row = (k, val, c = '') => rows.push(`<li><span>${k}</span><b class="${c}">${val}</b></li>`)
+              row('网速', v.online ? `↓ ${R.bytesText(v.down, 'B/s')}　↑ ${R.bytesText(v.up, 'B/s')}` : '—')
+              const ids = Object.keys(n.ping)
+              if (ids.length)
+                row(
+                  '延迟',
+                  v.online
+                    ? ids
+                        .map((k) => {
+                          const c = R.pingCls(v.ping[k], v.loss[k])
+                          return `<span class="${c === 't-hot' ? 'hot' : c === 't-warm' ? 'warm' : ''}">${esc(PING_TASKS.find((t) => t.id === +k).name)} ${Math.round(v.ping[k])}</span>`
+                        })
+                        .join('　') + ' ms'
+                    : '—',
+                )
+              row('累计流量', `↓ ${B(v.total.down)}　↑ ${B(v.total.up)}`)
+              const q = R.quotaPct(n, v)
+              if (q != null) row('流量配额', `<small>${B(R.quotaUsed(n, v))} / ${B(n.limit)}</small>${Math.round(q)}%`, cls(q))
+              if (n.swap) row('Swap', v.swap == null ? '—' : `<small>${B((n.swap * v.swap) / 100)} / ${B(n.swap)}</small>${Math.round(v.swap)}%`, cls(v.swap))
+              row('负载', v.online ? v.load.map((x) => x.toFixed(2)).join('　') : '—')
+              const dl = R.daysLeft(n)
+              row('到期', dl == null ? '长期' : `<small>${R.fmtDate(n.expires)}</small>${dl < 0 ? `已过期 ${-dl} 天` : `剩 ${dl} 天`}`, dl != null && dl < 0 ? 'hot' : dl != null && dl <= 7 ? 'warm' : '')
+
+              return `<a class="card${v.online ? '' : ' off'}" href="apple-detail.html?id=${n.uuid}">
+                <div class="c-top">${R.flag(n.region)}<div><div class="c-name">${esc(n.name)}</div>
+                  <div class="c-sub">${esc(n.os)}，${n.cores} 核，${v.online ? `已运行 ${R.fmtDur(v.uptime, true)}` : `${R.fmtDur(v.offlineFor, true)}前离线`}</div></div>${cap}</div>
+                <div class="c-mid">${rings([[v.cpu, cC], [v.mem, mC], [v.disk, dC]], 104, 10)}
+                  <div class="legend num">
+                    ${leg(cC, 'CPU', v.cpu, `${n.cores} 核`)}
+                    ${leg(mC, '内存', v.mem, v.mem == null ? B(n.mem) : `${B((n.mem * v.mem) / 100)} / ${B(n.mem)}`)}
+                    ${leg(dC, '磁盘', v.disk, `${B((n.disk * v.disk) / 100)} / ${B(n.disk)}`)}
+                  </div></div>
+                <ul class="ilist num">${rows.join('')}</ul>
+              </a>`
+            })
+            .join('')
+        }
+
+        syncView()
+        render()
+        setInterval(() => document.hidden || render(), 2000)
+      })()
+    </script>
+    <script src="switcher.js"></script>
+  </body>
+</html>

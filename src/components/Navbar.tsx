@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 
 import { useAppearance } from '../hooks/useAppearance'
 import { useLanguage } from '../hooks/useLanguage'
+import { useThemeSettings } from '../hooks/useThemeSettings'
 import { LANGUAGE_LABELS } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -38,7 +39,9 @@ export default function Navbar({
   authEntry = 'none',
 }: NavbarProps) {
   const { t } = useTranslation()
-  const { cycle } = useAppearance()
+  // 自己读设置而不是靠 props 透传：导航栏在两个页面各挂一次，透参要改两处调用。
+  const { defaultAppearance } = useThemeSettings()
+  const { cycle } = useAppearance(defaultAppearance)
   const { language, setLanguage, available } = useLanguage()
   const [langOpen, setLangOpen] = useState(false)
   const langRef = useRef<HTMLDivElement | null>(null)
@@ -213,22 +216,21 @@ export default function Navbar({
         {authEntry === 'admin' && (
           <a href="/admin" className="km-iconbtn km-auth-entry" title={t('nav.admin')}>
             {/*
-             * Lucide layout-dashboard。四格面板是通用的「控制台」符号，和齿轮
-             * （设置）区分得开 —— 点进去是整个后台，不只是设置页。
+             * Lucide settings（齿轮）。三套皮肤的后台入口统一用这一个图标 ——
+             * 顶栏布局可以各不相同，但「同一个动作」应当是同一个符号。原来 1.0
+             * 用的四格面板容易被当成视图切换，已弃用。
              */}
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.9"
+              strokeWidth="1.7"
               strokeLinecap="round"
               strokeLinejoin="round"
               className="size-4.5"
             >
-              <rect width="7" height="9" x="3" y="3" rx="1" />
-              <rect width="7" height="5" x="14" y="3" rx="1" />
-              <rect width="7" height="9" x="14" y="12" rx="1" />
-              <rect width="7" height="5" x="3" y="16" rx="1" />
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           </a>
         )}

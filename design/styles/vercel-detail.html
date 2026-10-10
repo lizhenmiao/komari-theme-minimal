@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>风格样张 / Vercel · Linear / 节点详情</title>
+    <script>
+      try {
+        const q = new URLSearchParams(location.search).get('theme')
+        if ((q || localStorage.getItem('km-style-vercel')) === 'light')
+          document.documentElement.classList.remove('dark')
+      } catch {}
+    </script>
+    <style>
+      /* 风格样张：Vercel / Linear 详情页。令牌与首页 vercel.html 一致。 */
+      @font-face {
+        font-family: 'Inter';
+        src: url('fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      :root {
+        --bg: #ffffff;
+        --bg2: #fafafa;
+        --line: #eaeaea;
+        --line2: #d4d4d4;
+        --text: #171717;
+        --muted: #5f5f5f;
+        --faint: #737373;
+        --chart: #171717;
+        --red: #cb2a2f;
+        --red-bg: #fdecec;
+        --amber: #9a5b00;
+        --amber-bg: #fff4e0;
+        --green: #1a7f37;
+        --green-bg: #e9f7ee;
+
+        --ch-grid: #f0f0f0;
+        --ch-axis: #8f8f8f;
+        --ch-main: #171717;
+        --ch-alt: #8f8f8f;
+        --ch-s1: #0068d6;
+        --ch-s2: #8e4ec6;
+        --ch-s3: #0d9488;
+        --ch-warm: #e79c13;
+        --ch-hot: #e5484d;
+        --ch-bg: #ffffff;
+        --ch-cross: #a1a1a1;
+        --ch-track: #fafafa;
+        --ch-hatch: #ececec;
+        color-scheme: light;
+      }
+      .dark {
+        --bg: #000000;
+        --bg2: #0a0a0a;
+        --line: #232323;
+        --line2: #3a3a3a;
+        --text: #ededed;
+        --muted: #a1a1a1;
+        --faint: #8f8f8f;
+        --chart: #ededed;
+        --red: #ff6166;
+        --red-bg: rgb(255 97 102 / 0.1);
+        --amber: #f5b03e;
+        --amber-bg: rgb(245 176 62 / 0.1);
+        --green: #45c46b;
+        --green-bg: rgb(69 196 107 / 0.08);
+
+        --ch-grid: #161616;
+        --ch-axis: #737373;
+        --ch-main: #ededed;
+        --ch-alt: #737373;
+        --ch-s1: #52a8ff;
+        --ch-s2: #bf7af0;
+        --ch-s3: #45dec5;
+        --ch-warm: #f5b03e;
+        --ch-hot: #ff6166;
+        --ch-bg: #0a0a0a;
+        --ch-cross: #6b6b6b;
+        --ch-track: #0a0a0a;
+        --ch-hatch: #1d1d1d;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-feature-settings: 'tnum', 'cv11';
+        -webkit-font-smoothing: antialiased;
+        padding-bottom: 90px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--text);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      .hot {
+        color: var(--red);
+      }
+      .warm {
+        color: var(--amber);
+      }
+      .t-faint {
+        color: var(--faint);
+      }
+      .gap {
+        display: inline-block;
+        width: 10px;
+      }
+
+      /* 顶栏 */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--bg) 85%, transparent);
+        backdrop-filter: saturate(180%) blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-in {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 60px;
+        white-space: nowrap;
+      }
+      .sep {
+        color: var(--line2);
+        font-size: 22px;
+        font-weight: 200;
+        margin: 0 -2px;
+      }
+      .crumb {
+        color: var(--muted);
+      }
+      .crumb:hover {
+        color: var(--text);
+      }
+      .crumb.cur {
+        color: var(--text);
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .nav-r {
+        margin-left: auto;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7928ca, #ff0080);
+      }
+
+      /* 抬头 */
+      .head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        padding: 36px 0 24px;
+      }
+      .head .flag {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+      .head .region-text {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .head h1 {
+        margin: 0;
+        font-size: 30px;
+        line-height: 1.15;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .head-r {
+        margin-left: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 30px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .pill i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .pill.off i {
+        background: var(--red);
+      }
+      .tag {
+        padding: 2px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* 一句话状态 */
+      .callout {
+        display: flex;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--bg2);
+      }
+      .callout i {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        margin-top: 1px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--green-bg);
+        color: var(--green);
+        font-style: normal;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .callout[data-lv='hot'],
+      .callout[data-lv='off'] {
+        border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+        background: var(--red-bg);
+      }
+      .callout[data-lv='hot'] i,
+      .callout[data-lv='off'] i {
+        background: var(--red);
+        color: var(--bg);
+      }
+      .callout[data-lv='warm'] {
+        border-color: color-mix(in srgb, var(--amber) 35%, var(--line));
+        background: var(--amber-bg);
+      }
+      .callout[data-lv='warm'] i {
+        background: var(--amber);
+        color: var(--bg);
+      }
+      .callout b {
+        font-weight: 600;
+      }
+      .callout span {
+        color: var(--muted);
+        margin-left: 6px;
+      }
+
+      /* 当前值 */
+      .now {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        margin-top: 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--bg2);
+      }
+      .now > div {
+        padding: 16px 18px;
+        border-left: 1px solid var(--line);
+        min-width: 0;
+      }
+      .now > div:first-child {
+        border-left: 0;
+      }
+      .now .lb {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .now .v {
+        margin: 4px 0 10px;
+        font-size: 28px;
+        line-height: 1.15;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        white-space: nowrap;
+      }
+      .now .v small {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--muted);
+        margin-left: 2px;
+        letter-spacing: 0;
+      }
+      .now .v.hot small,
+      .now .v.warm small {
+        color: inherit;
+      }
+      .now .v2 {
+        margin: 4px 0 0;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+      }
+      .now .v2 em {
+        font-style: normal;
+        color: var(--faint);
+        font-weight: 400;
+        margin-right: 4px;
+      }
+      .bar {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--muted);
+        transition: width 0.5s ease;
+      }
+      .bar i.warm {
+        background: var(--amber);
+      }
+      .bar i.hot {
+        background: var(--red);
+      }
+      .now .d {
+        margin-top: 8px;
+        color: var(--faint);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* 主体 */
+      .body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 24px;
+        margin-top: 36px;
+        align-items: start;
+      }
+      .sec-h {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .sec-h h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .filter {
+        margin-left: auto;
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg2);
+      }
+      .filter button {
+        height: 28px;
+        padding: 0 11px;
+        border: 0;
+        border-radius: 7px;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .filter button[aria-pressed='true'] {
+        background: var(--bg);
+        color: var(--text);
+        box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.08);
+      }
+      .charts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .chart {
+        padding: 14px 16px 6px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--bg2);
+        min-width: 0;
+      }
+      .chart.wide {
+        grid-column: 1 / -1;
+      }
+      .c-h {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 14px;
+        margin-bottom: 6px;
+      }
+      .c-h h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .keys {
+        display: flex;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .keys span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .keys i {
+        width: 10px;
+        height: 2px;
+        border-radius: 1px;
+      }
+      .stat {
+        margin-left: auto;
+        display: flex;
+        gap: 14px;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .stat b {
+        color: var(--text);
+        font-weight: 600;
+        margin-left: 5px;
+      }
+      .plot text {
+        fill: var(--ch-axis);
+        font: 11px 'Inter', system-ui, sans-serif;
+      }
+      .note {
+        margin: 0 0 8px;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .empty {
+        display: grid;
+        place-items: center;
+        height: 168px;
+        color: var(--faint);
+        font-size: 13px;
+        text-align: center;
+        padding: 0 24px;
+      }
+
+      /* 侧栏 */
+      .side {
+        position: sticky;
+        top: 84px;
+        display: grid;
+        gap: 16px;
+      }
+      .box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--bg2);
+      }
+      .box h3 {
+        margin: 0;
+        padding: 12px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-bottom: 1px solid var(--line);
+      }
+      .kv {
+        margin: 0;
+        padding: 4px 16px 8px;
+      }
+      .kv > div {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        padding: 7px 0;
+        font-size: 13px;
+      }
+      .kv > div + div {
+        border-top: 1px dashed var(--line);
+      }
+      .kv dt {
+        color: var(--muted);
+        flex: none;
+      }
+      .kv dd {
+        margin: 0 0 0 auto;
+        text-align: right;
+        font-weight: 500;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .kv dd small {
+        display: block;
+        color: var(--faint);
+        font-size: 12px;
+        font-weight: 400;
+      }
+      .kv .bar {
+        margin-top: 6px;
+      }
+      .kv i.k {
+        display: inline-block;
+        width: 10px;
+        height: 2px;
+        border-radius: 1px;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      .tip {
+        position: fixed;
+        z-index: 50;
+        pointer-events: none;
+        min-width: 160px;
+        padding: 8px 12px;
+        border: 1px solid var(--line2);
+        border-radius: 8px;
+        background: var(--bg);
+        box-shadow: 0 8px 30px rgb(0 0 0 / 0.25);
+        font-size: 12px;
+        line-height: 1.7;
+        opacity: 0;
+      }
+      .tip.on {
+        opacity: 1;
+      }
+      .tip .tt {
+        color: var(--muted);
+      }
+      .tip .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tip .row i {
+        width: 10px;
+        height: 2px;
+        border-radius: 1px;
+      }
+      .tip .row b {
+        margin-left: auto;
+        padding-left: 14px;
+        font-weight: 600;
+      }
+
+      @media (max-width: 1100px) {
+        .now {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .now > div:nth-child(4) {
+          border-left: 0;
+        }
+        .now > div:nth-child(n + 4) {
+          border-top: 1px solid var(--line);
+        }
+        .body {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .side {
+          position: static;
+          grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+        }
+      }
+      @media (max-width: 760px) {
+        .charts {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .wrap {
+          padding: 0 16px;
+        }
+        .now {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .now > div:nth-child(n) {
+          border-left: 1px solid var(--line);
+          border-top: 1px solid var(--line);
+        }
+        .now > div:nth-child(odd) {
+          border-left: 0;
+        }
+        .now > div:nth-child(-n + 2) {
+          border-top: 0;
+        }
+        .head-r {
+          margin-left: 0;
+        }
+        .filter {
+          margin-left: 0;
+        }
+        .stat {
+          margin-left: 0;
+        }
+        .crumb.hide-sm,
+        .sep.hide-sm {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-in">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+          <rect width="24" height="24" rx="6" fill="currentColor" />
+          <path d="M6 15.5 10 11l3 3 5-6" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="sep">/</span><a class="crumb hide-sm" href="vercel.html">Komari Mock</a><span class="sep hide-sm">/</span><span class="crumb cur" id="crumb"></span>
+        <div class="nav-r">
+          <button type="button" class="icon-btn" id="theme" aria-label="切换外观"></button>
+          <span class="avatar" aria-hidden="true"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="head" id="head"></section>
+      <p class="callout" id="verdict" role="status"></p>
+      <section class="now" id="now" aria-label="当前值"></section>
+
+      <div class="body">
+        <section>
+          <div class="sec-h"><h2>历史</h2><div class="filter" id="ranges" role="group" aria-label="时间范围"></div></div>
+          <div class="charts" id="charts"></div>
+        </section>
+        <aside class="side" id="side"></aside>
+      </div>
+    </main>
+
+    <script src="data.js"></script>
+    <script src="core.js"></script>
+    <script>
+      ;(function () {
+        'use strict'
+        const R = window.RACK
+        const C = window.CORE
+        const { esc } = R
+        const n = R.NODES.find((x) => x.uuid === new URLSearchParams(location.search).get('id')) || R.NODES[3]
+        const tasks = C.tasksOf(n)
+        const S = ['var(--ch-s1)', 'var(--ch-s2)', 'var(--ch-s3)']
+        const B = (b) => R.bytesText(b, 'B')
+        const pct = (p) => (p == null ? '—' : Math.round(p))
+        let range = '4h'
+        document.title = `${n.name} / Vercel 样张`
+        document.getElementById('crumb').textContent = n.name
+
+        const SUN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+        const MOON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>'
+        const themeBtn = document.getElementById('theme')
+        const sync = () => (themeBtn.innerHTML = document.documentElement.classList.contains('dark') ? SUN : MOON)
+        themeBtn.addEventListener('click', () => {
+          const d = document.documentElement.classList.toggle('dark')
+          localStorage.setItem('km-style-vercel', d ? 'dark' : 'light')
+          sync()
+        })
+        sync()
+
+        function tick() {
+          const v = R.live(n)
+          const issues = R.issues(n, v).filter((i) => !i.minor)
+
+          document.getElementById('head').innerHTML = `${R.flag(n.region)}
+            <div><h1>${esc(n.name)}</h1><div class="meta">${[n.os, n.arch, n.virt, n.cpu_name, `${n.cores} 核`].map(esc).join('<span class="gap"></span>')}</div></div>
+            <div class="head-r">
+              <span class="pill${v.online ? '' : ' off'}"><i></i>${v.online ? `在线 ${R.fmtDur(v.uptime)}` : `离线 ${R.fmtDur(v.offlineFor)}`}</span>
+              ${n.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
+            </div>`
+
+          const vd = C.verdict(n, v)
+          const vEl = document.getElementById('verdict')
+          vEl.dataset.lv = vd.lv
+          vEl.innerHTML = `<i aria-hidden="true">${vd.lv === 'ok' ? '✓' : '!'}</i><span style="margin:0"><b style="color:var(--text)">${esc(vd.title)}。</b><span>${esc(vd.body)}</span></span>`
+
+          const cell = (lb, p, d) => `<div><div class="lb">${lb}</div><div class="v ${C.lvCls(p)}">${pct(p)}${p == null ? '' : '<small>%</small>'}</div>
+            <div class="bar"><i class="${C.lvCls(p)}" style="width:${Math.min(100, p ?? 0)}%"></i></div><div class="d">${d}</div></div>`
+          document.getElementById('now').innerHTML = [
+            cell('CPU', v.cpu, `${n.cores} 核`),
+            cell('内存', v.mem, v.mem == null ? B(n.mem) : `${B((n.mem * v.mem) / 100)} / ${B(n.mem)}`),
+            cell('磁盘', v.disk, `${B((n.disk * v.disk) / 100)} / ${B(n.disk)}`),
+            n.swap
+              ? cell('Swap', v.swap, v.swap == null ? B(n.swap) : `${B((n.swap * v.swap) / 100)} / ${B(n.swap)}`)
+              : `<div><div class="lb">Swap</div><div class="v t-faint" style="font-size:20px;margin-top:8px">未开启</div><div class="d">没有配置 Swap</div></div>`,
+            `<div><div class="lb">网速</div><div class="v2"><em>↓</em>${v.online ? R.bytesText(v.down, 'B/s') : '—'}</div><div class="v2"><em>↑</em>${v.online ? R.bytesText(v.up, 'B/s') : '—'}</div></div>`,
+            `<div><div class="lb">负载</div><div class="v ${v.online && v.load[0] >= n.cores ? 'warm' : ''}">${v.online ? v.load[0].toFixed(2) : '—'}</div>
+              <div class="d">${v.online ? `5 分钟 ${v.load[1].toFixed(2)}，15 分钟 ${v.load[2].toFixed(2)}` : '—'}</div></div>`,
+          ].join('')
+
+          // 侧栏
+          const q = R.quotaPct(n, v)
+          const dl = R.daysLeft(n)
+          const row = (k, val) => `<div><dt>${k}</dt><dd>${val}</dd></div>`
+          const box = (title, rows) => `<section class="box"><h3>${title}</h3><dl class="kv">${rows.join('')}</dl></section>`
+          document.getElementById('side').innerHTML = [
+            box('流量', [
+              row('累计下行', B(v.total.down)),
+              row('累计上行', B(v.total.up)),
+              q == null
+                ? row('配额', '<span class="t-faint">不限</span>')
+                : `<div style="display:block"><div style="display:flex"><dt>配额<span class="t-faint">，${R.LIMIT_TYPE_TEXT[n.limitType]}</span></dt><dd class="${C.lvCls(q)}">${Math.round(q)}%</dd></div>
+                    <div class="bar"><i class="${C.lvCls(q)}" style="width:${Math.min(100, q)}%"></i></div>
+                    <dd style="text-align:left;margin-top:6px"><small>${B(R.quotaUsed(n, v))} / ${B(n.limit)}${q > 100 ? `<span class="hot">，超出 ${B(R.quotaUsed(n, v) - n.limit)}</span>` : ''}</small></dd></div>`,
+            ]),
+            box(
+              '延迟与丢包',
+              tasks.length
+                ? tasks.map((t, i) => {
+                    const ms = v.ping[t.id]
+                    const loss = v.loss[t.id] ?? 0
+                    const c = v.online ? R.pingCls(ms, loss) : ''
+                    return row(`<i class="k" style="background:${S[i]}"></i>${esc(t.name)}`, v.online ? `<span class="${c === 't-hot' ? 'hot' : c === 't-warm' ? 'warm' : ''}">${Math.round(ms)} ms</span><small>丢包 ${(loss * 100).toFixed(1)}%</small>` : '—')
+                  })
+                : [row('探测任务', '<span class="t-faint">未配置</span>')],
+            ),
+            box('运行', [
+              row('在线时长', v.online ? R.fmtDur(v.uptime) : '—'),
+              row('进程', v.online ? v.proc : '—'),
+              row('连接', v.online ? v.conn : '—'),
+              row('最后上报', v.online ? '刚刚' : `<span class="hot">${R.fmtClock(Date.now() / 1000 - v.offlineFor, true)}</span>`),
+            ]),
+            box('账单', [
+              ...(n.price ? [row('价格', n.price === '0' ? '免费' : esc(n.price))] : []),
+              ...(n.cycle ? [row('计费周期', `${n.cycle} 天`)] : []),
+              row('到期', dl == null ? '长期' : `<span class="${dl < 0 ? 'hot' : dl <= 7 ? 'warm' : ''}">${R.fmtDate(n.expires)}</span><small>${dl < 0 ? `已过期 ${-dl} 天` : `剩 ${dl} 天`}</small>`),
+            ]),
+            box('硬件', [row('CPU', esc(n.cpu_name)), row('核心', `${n.cores} 核`), row('内存', B(n.mem)), row('Swap', n.swap ? B(n.swap) : '未开启'), row('磁盘', B(n.disk)), row('GPU', '无')]),
+            box('系统', [row('系统', esc(n.os)), row('架构', esc(n.arch)), row('虚拟化', esc(n.virt)), row('内核', esc(n.kernel)), row('地区', esc(n.region))]),
+          ].join('')
+        }
+
+        // ---------- 图表 ----------
+        const chartsEl = document.getElementById('charts')
+        let current = []
+        function renderCharts() {
+          const h = C.history(n, range)
+          current = C.charts(n, h).map((cfg) => ({ cfg, h }))
+          chartsEl.innerHTML = current
+            .map(
+              ({ cfg }, i) => `<section class="chart${cfg.wide ? ' wide' : ''}">
+                <div class="c-h"><h3>${esc(cfg.title)}</h3>
+                  ${cfg.keys ? `<span class="keys">${cfg.keys.map(([k, c]) => `<span><i style="background:${c}"></i>${esc(k)}</span>`).join('')}</span>` : ''}
+                  ${cfg.stat ? `<span class="stat">${cfg.stat.map(([k, v, c]) => `<span>${k}<b class="${c}">${v}</b></span>`).join('')}</span>` : ''}
+                </div>
+                ${cfg.empty ? `<div class="empty">${esc(cfg.empty)}</div>` : `<div class="plot" data-i="${i}"></div>`}
+                ${cfg.note ? `<p class="note">${esc(cfg.note)}</p>` : ''}
+              </section>`,
+            )
+            .join('')
+          drawAll()
+        }
+        function drawAll() {
+          for (const el of chartsEl.querySelectorAll('.plot')) {
+            const { cfg, h } = current[+el.dataset.i]
+            C.chart(el, cfg, h, { height: 180, stroke: 1.5, area: 0.16 })
+          }
+        }
+        const rangesEl = document.getElementById('ranges')
+        rangesEl.innerHTML = C.RANGES.map(([k, lb]) => `<button type="button" data-r="${k}" aria-pressed="${k === range}">${lb}</button>`).join('')
+        rangesEl.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-r]')
+          if (!b) return
+          range = b.dataset.r
+          for (const x of rangesEl.children) x.setAttribute('aria-pressed', String(x.dataset.r === range))
+          renderCharts()
+        })
+        let raf = 0
+        new ResizeObserver(() => {
+          cancelAnimationFrame(raf)
+          raf = requestAnimationFrame(drawAll)
+        }).observe(chartsEl)
+
+        tick()
+        renderCharts()
+        setInterval(() => document.hidden || tick(), 2000)
+      })()
+    </script>
+    <script src="switcher.js"></script>
+  </body>
+</html>

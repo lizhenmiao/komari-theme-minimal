@@ -24,9 +24,23 @@ interface SparklineProps {
   label?: string
   /** 离线节点画成贴底的平线，不显示末点。 */
   dimmed?: boolean
+  /**
+   * 去掉边框盒子与标签、透明底、全宽铺满。给新皮肤用 —— 它们的卡片上方
+   * 已经有大号 CPU 数字，不需要再套一个带标签的盒子。经典皮肤不传，保持原样。
+   */
+  bare?: boolean
+  /** 像素高度，默认 40（等于经典皮肤原来的 h-10）。 */
+  height?: number
 }
 
-export default function Sparkline({ data, color, label, dimmed = false }: SparklineProps) {
+export default function Sparkline({
+  data,
+  color,
+  label,
+  dimmed = false,
+  bare = false,
+  height = 40,
+}: SparklineProps) {
   // 一个点画不出线段，两点起才有意义。
   if (data.length < 2) return null
 
@@ -46,42 +60,44 @@ export default function Sparkline({ data, color, label, dimmed = false }: Sparkl
   // 同一页面上多个 spark 各自要有独立的渐变 id，否则后者会覆盖前者。
   const gradientId = `km-spark-${Math.abs(hash(data.join(','))).toString(36)}`
 
+  const svg = (
+    <svg
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      preserveAspectRatio="none"
+      className="block w-full"
+      style={{ height: `${height}px` }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity={bare ? '0.22' : '0.3'} />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradientId})`} />
+      <path
+        d={line}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.4"
+        vectorEffect="non-scaling-stroke"
+        opacity={dimmed ? 0.5 : 1}
+      />
+      {!dimmed && last.length === 2 && (
+        <circle cx={last[0]} cy={last[1]} r="2" fill={color} vectorEffect="non-scaling-stroke" />
+      )}
+    </svg>
+  )
+
+  // 新皮肤：裸图，不套盒子也不加标签。
+  if (bare) return <div className="relative overflow-hidden">{svg}</div>
+
   return (
     <div className="relative overflow-hidden rounded-md border km-hair bg-km-panel2">
       {label && (
         <span className="absolute top-1 left-2 z-[1] km-section text-[9.5px]">{label}</span>
       )}
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        preserveAspectRatio="none"
-        className="block h-10 w-full"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={color} stopOpacity="0.3" />
-            <stop offset="1" stopColor={color} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill={`url(#${gradientId})`} />
-        <path
-          d={line}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.4"
-          vectorEffect="non-scaling-stroke"
-          opacity={dimmed ? 0.5 : 1}
-        />
-        {!dimmed && last.length === 2 && (
-          <circle
-            cx={last[0]}
-            cy={last[1]}
-            r="2"
-            fill={color}
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
-      </svg>
+      {svg}
     </div>
   )
 }

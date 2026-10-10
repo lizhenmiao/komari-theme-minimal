@@ -9,6 +9,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import Footer from './components/Footer'
+import { useSkin } from './hooks/useSkin'
 import { useThemeSettings } from './hooks/useThemeSettings'
 import { configureTransport, startTransport, stopTransport } from './lib/transport'
 import { getState, subscribe } from './lib/store'
@@ -22,6 +23,16 @@ function TransportConfigurator() {
   useEffect(() => {
     configureTransport({ refreshIntervalSeconds: settings.refreshInterval })
   }, [settings.refreshInterval])
+  return null
+}
+
+/**
+ * 把运营者选的风格写到 `<html data-style>` 并缓存，供下次首屏在首帧前使用。
+ * 放在路由之外：风格是全站的，详情页和首页共用同一次同步。
+ */
+function SkinSync() {
+  const settings = useThemeSettings()
+  useSkin(settings.style, settings.defaultAppearance)
   return null
 }
 
@@ -68,6 +79,7 @@ export default function App() {
       </div>
 
       <TransportConfigurator />
+      <SkinSync />
       <DocumentTitle />
 
       <div className="km-layout flex min-h-dvh flex-col">

@@ -183,8 +183,20 @@ export interface PingRecord {
  * public:listMetricDefinitions，和这个文件里的状态结构不是一套命名。
  */
 
+/** 界面风格。管理员在后台选，访客不能改。 */
+export type SkinName = 'classic' | 'vercel' | 'apple'
+
+/** 访客没自己选过外观时的初始值。 */
+export type DefaultAppearance = 'system' | 'light' | 'dark'
+
 /** 合并默认值之后的主题设置。 */
 export interface ThemeSettings {
+  /** 界面风格。三种皮肤共用同一套数据与换算，只换展示层。 */
+  style: SkinName
+  /** 访客的 `appearance` 偏好缺失时用这个值。访客自己切过之后以访客为准。 */
+  defaultAppearance: DefaultAppearance
+  /** 首页「需要注意」板块。仅 vercel / apple 皮肤有这个区块。 */
+  showAttention: boolean
   defaultView: 'grid' | 'table'
   refreshInterval: number
   showDisk: boolean

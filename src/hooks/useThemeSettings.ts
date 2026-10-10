@@ -11,9 +11,25 @@
 import { useSyncExternalStore } from 'react'
 
 import { getState, subscribe } from '../lib/store'
-import type { ThemeSettings } from '../lib/types'
+import type { DefaultAppearance, SkinName, ThemeSettings } from '../lib/types'
+
+/**
+ * 风格的出厂默认值。
+ *
+ * 服务端对后台没存过的键一律补 manifest 的默认值
+ * （`.tmp/komari/database/utils.go` 里的 `managedconfig.DefaultValue`），
+ * 分不出新装和老装，所以老站点升级后也会落到这里 —— 这是产品决策，
+ * 不是疏漏，Release 说明里要写明「想保留原样就到后台选经典」。
+ */
+const DEFAULT_SKIN: SkinName = 'apple'
+
+const SKINS: readonly SkinName[] = ['classic', 'vercel', 'apple']
+const APPEARANCES: readonly DefaultAppearance[] = ['system', 'light', 'dark']
 
 export const DEFAULT_SETTINGS: ThemeSettings = {
+  style: DEFAULT_SKIN,
+  defaultAppearance: 'system',
+  showAttention: true,
   defaultView: 'grid',
   refreshInterval: 2,
   showDisk: true,
@@ -64,11 +80,30 @@ const isString = (entry: unknown): entry is string => typeof entry === 'string'
 const isNumber = (entry: unknown): entry is number =>
   typeof entry === 'number' && Number.isFinite(entry)
 
+/**
+ * 读 `select` 型设置。
+ *
+ * 后台存的是选项字符串本身。大小写与首尾空白都容错一下：这个值可能由管理员
+ * 手改数据库写进去，一个空格就让整套界面回退到默认风格，排查起来毫无线索。
+ */
+function readChoice<T extends string>(raw: unknown, allowed: readonly T[], fallback: T): T {
+  if (typeof raw !== 'string') return fallback
+  const value = raw.trim().toLowerCase()
+  return allowed.find((entry) => entry === value) ?? fallback
+}
+
 export function resolveSettings(raw: Record<string, unknown> | undefined | null): ThemeSettings {
   if (!raw || typeof raw !== 'object') return DEFAULT_SETTINGS
 
   const view = raw['defaultView']
   return {
+    style: readChoice(raw['style'], SKINS, DEFAULT_SETTINGS.style),
+    defaultAppearance: readChoice(
+      raw['defaultAppearance'],
+      APPEARANCES,
+      DEFAULT_SETTINGS.defaultAppearance,
+    ),
+    showAttention: readBoolean(raw['showAttention'], DEFAULT_SETTINGS.showAttention),
     // `select` 的缺省值回退到第一个选项，也就是 `grid`。
     defaultView: view === 'table' ? 'table' : 'grid',
     refreshInterval: readNumber(raw['refreshInterval'], DEFAULT_SETTINGS.refreshInterval, 1),

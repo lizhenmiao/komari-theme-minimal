@@ -2,7 +2,7 @@
   "name": "komari-theme-minimal",
   "private": true,
   "type": "module",
-  "description": "A minimal, monochrome theme for Komari Monitor.",
+  "description": "A Komari Monitor theme with three admin-selectable styles: Apple, Vercel and Classic.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

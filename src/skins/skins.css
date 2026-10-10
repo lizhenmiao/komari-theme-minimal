@@ -1,0 +1,793 @@
+/*
+ * 两套新皮肤（vercel / apple）的配色令牌与共用组件类。
+ *
+ * ============================================================
+ * 换皮机制
+ * ============================================================
+ *
+ * 不写三套并行的类名。`bg-km-panel` 这类工具类编译成
+ * `background-color: var(--color-km-panel)`，所以只要在
+ * `html[data-style='…']` 下覆盖同名自定义属性的值，整套工具类就自动换色，
+ * 组件代码一行不用改。
+ *
+ * 选择器用 `html[data-style=…]`（0,1,1）而不是 `[data-style=…]`（0,1,0）：
+ * 后者和 `@theme` 生成的 `:root` 同优先级，只能靠源码顺序取胜，一旦
+ * Tailwind 调整产物顺序就会静默失效。
+ *
+ * 深色写成 `html[data-style=…].dark`。`.dark` 由 index.html 的 pre-paint
+ * 脚本和 useAppearance 打在同一个 `<html>` 上，两个属性落在同一元素。
+ *
+ * ============================================================
+ * 新增令牌
+ * ============================================================
+ *
+ * 经典皮肤只有指标色，新皮肤还要表达「状态」。新增的是：
+ *   --color-km-accent   强调色，链接与选中态
+ *   --color-km-good     正常
+ *   --color-km-raised   比 panel 更高一层的表面（悬停、浮层）
+ * 这三个在经典皮肤下也有值（见 index.css），所以组件可以无条件使用。
+ */
+
+/* ------------------------------------------------------------------ */
+/* vercel：黑白灰 + 极细描边，颜色只在出事时出现                        */
+/* ------------------------------------------------------------------ */
+
+html[data-style='vercel'] {
+  --color-km-bg: #ffffff;
+  --color-km-panel: #fafafa;
+  --color-km-panel2: #f2f2f2;
+  --color-km-raised: #ffffff;
+  --color-km-border: #eaeaea;
+  --color-km-border2: #d4d4d4;
+  --color-km-hair: #eaeaea;
+  --color-km-text: #171717;
+  --color-km-dim: #5f5f5f;
+  --color-km-faint: #767676;
+  --color-km-track: #ebebeb;
+  --color-km-tip: #ffffff;
+  --color-km-accent: #0070f3;
+  --color-km-good: #117a3d;
+
+  /*
+   * vercel 的识别度来自「单色底盘 + 一个强调色」，不是满屏灰。
+   *
+   * CPU 是头条指标（大数字 + 趋势线），给它强调蓝，让每张卡片有一处活色；
+   * 内存 / 磁盘这些次级仪表留作中性，颜色仍然只在越过阈值时出现。这既不是
+   * Apple 那种每项一色，也不是死灰一片。
+   */
+  --color-km-cpu: #0070f3;
+  --color-km-mem: #171717;
+  --color-km-disk: #171717;
+  --color-km-swap: #8f8f8f;
+  --color-km-quota: #171717;
+  /* 上下行固定成一对区分色，否则双线图上两条线分不开。 */
+  --color-km-up: #8e4ec6;
+  --color-km-down: #0070f3;
+  --color-km-ok: #117a3d;
+  --color-km-warn: #8a5b00;
+  --color-km-bad: #c62a2f;
+  --color-km-series1: #0070f3;
+  --color-km-series2: #8e4ec6;
+  --color-km-series3: #0d7a6f;
+}
+
+html[data-style='vercel'].dark {
+  /*
+   * 不用纯黑。纯黑底 + 近黑卡片（#000 / #0a0a0a）在真机上糊成一整块死面，
+   * 卡片和背景几乎分不开 —— 这正是「死气沉沉」的来源。改用偏蓝的近黑底，
+   * 并把卡片明显抬高一档、边框提亮，卡片就浮起来了。参照 Linear 的做法。
+   */
+  --color-km-bg: #0a0a0c;
+  --color-km-panel: #151518;
+  --color-km-panel2: #1f1f23;
+  --color-km-raised: #1f1f23;
+  --color-km-border: #2a2a31;
+  --color-km-border2: #3c3c45;
+  --color-km-hair: #232329;
+  --color-km-text: #ededed;
+  --color-km-dim: #a1a1aa;
+  --color-km-faint: #80808a;
+  --color-km-track: #2a2a31;
+  --color-km-tip: #151518;
+  --color-km-accent: #4e9bff;
+  --color-km-good: #45c46b;
+
+  --color-km-cpu: #4e9bff;
+  --color-km-mem: #ededed;
+  --color-km-disk: #ededed;
+  --color-km-swap: #8f8f8f;
+  --color-km-quota: #ededed;
+  --color-km-up: #bf7af0;
+  --color-km-down: #4e9bff;
+  --color-km-ok: #45c46b;
+  --color-km-warn: #f5b03e;
+  --color-km-bad: #ff6166;
+  --color-km-series1: #4e9bff;
+  --color-km-series2: #bf7af0;
+  --color-km-series3: #45dec5;
+}
+
+/* ------------------------------------------------------------------ */
+/* apple：浅灰底 + 白色大圆角卡片，系统色板                             */
+/* ------------------------------------------------------------------ */
+
+html[data-style='apple'] {
+  --color-km-bg: #f5f5f7;
+  --color-km-panel: #ffffff;
+  --color-km-panel2: #f5f5f7;
+  --color-km-raised: #ffffff;
+  --color-km-border: #e5e5ea;
+  --color-km-border2: #d1d1d6;
+  --color-km-hair: #e8e8ed;
+  --color-km-text: #1d1d1f;
+  --color-km-dim: #6e6e73;
+  --color-km-faint: #86868b;
+  --color-km-track: #e8e8ed;
+  --color-km-tip: #ffffff;
+  --color-km-accent: #0066cc;
+  --color-km-good: #248a3d;
+
+  /* iOS 系统色，文字档用加深版本保证对比度。 */
+  --color-km-cpu: #007aff;
+  --color-km-mem: #5856d6;
+  --color-km-disk: #0b8bc4;
+  --color-km-swap: #8e8e93;
+  --color-km-quota: #007aff;
+  --color-km-up: #af52de;
+  --color-km-down: #007aff;
+  --color-km-ok: #248a3d;
+  --color-km-warn: #b25000;
+  --color-km-bad: #d70015;
+  --color-km-series1: #007aff;
+  --color-km-series2: #af52de;
+  --color-km-series3: #0b8bc4;
+}
+
+html[data-style='apple'].dark {
+  --color-km-bg: #000000;
+  --color-km-panel: #1c1c1e;
+  --color-km-panel2: #2c2c2e;
+  --color-km-raised: #2c2c2e;
+  --color-km-border: #38383a;
+  --color-km-border2: #48484a;
+  --color-km-hair: #2c2c2e;
+  --color-km-text: #f5f5f7;
+  --color-km-dim: #98989d;
+  --color-km-faint: #8e8e93;
+  --color-km-track: #2c2c2e;
+  --color-km-tip: #2c2c2e;
+  --color-km-accent: #409cff;
+  --color-km-good: #30d158;
+
+  --color-km-cpu: #0a84ff;
+  --color-km-mem: #5e5ce6;
+  --color-km-disk: #64d2ff;
+  --color-km-swap: #8e8e93;
+  --color-km-quota: #0a84ff;
+  --color-km-up: #bf5af2;
+  --color-km-down: #0a84ff;
+  --color-km-ok: #30d158;
+  --color-km-warn: #ff9f0a;
+  --color-km-bad: #ff453a;
+  --color-km-series1: #0a84ff;
+  --color-km-series2: #bf5af2;
+  --color-km-series3: #64d2ff;
+}
+
+/* ------------------------------------------------------------------ */
+/* 经典皮肤独有的装饰，在新皮肤下关掉                                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 飘移的光晕属于经典皮肤的玻璃拟态。新皮肤要的是干净的纯色底，留着它
+ * 会在白卡片后面透出两团蓝紫，正是「默认模板感」的来源之一。
+ */
+html[data-style='vercel'] .km-bg,
+html[data-style='apple'] .km-bg {
+  background: var(--color-km-bg);
+}
+
+html[data-style='vercel'] .km-blob,
+html[data-style='apple'] .km-blob {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* 两套新皮肤共用的组件类                                               */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  /*
+   * 细条。和经典皮肤的 LED 分段条（km-track / km-bar）刻意不同：
+   * 新皮肤只用一条实心细线，不开 mask 抠洞。
+   */
+  .km-s-track {
+    @apply overflow-hidden rounded-full bg-km-track;
+  }
+
+  .km-s-fill {
+    @apply h-full rounded-full transition-[width,background-color] duration-500;
+  }
+
+  /*
+   * 档位色。平时是中性灰，只有越过阈值才上色 —— 这是两套新皮肤和经典皮肤
+   * 最根本的差别：经典用颜色区分「哪个指标」，新皮肤用颜色区分「出没出事」。
+   */
+  .km-s-fill-ok {
+    @apply bg-km-dim;
+  }
+  .km-s-fill-warn {
+    @apply bg-km-warn;
+  }
+  .km-s-fill-bad {
+    @apply bg-km-bad;
+  }
+
+  .km-s-text-warn {
+    @apply text-km-warn;
+  }
+  .km-s-text-bad {
+    @apply text-km-bad;
+  }
+
+  /* 状态徽章：出问题时用的小圆角标签，底色是语义色的淡色。 */
+  .km-s-badge {
+    @apply inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[12px]
+      font-semibold whitespace-nowrap;
+  }
+
+  .km-s-badge-bad {
+    color: var(--color-km-bad);
+    background: color-mix(in srgb, var(--color-km-bad) 13%, transparent);
+  }
+
+  .km-s-badge-warn {
+    color: var(--color-km-warn);
+    background: color-mix(in srgb, var(--color-km-warn) 15%, transparent);
+  }
+
+  .km-s-badge-ok {
+    color: var(--color-km-good);
+    background: color-mix(in srgb, var(--color-km-good) 14%, transparent);
+  }
+
+  .km-s-badge-mute {
+    @apply bg-km-panel2 text-km-dim;
+  }
+
+  /* 中性小标签，取代经典皮肤那种每个标签一种颜色的描边药丸。 */
+  .km-s-tag {
+    @apply inline-flex shrink-0 items-center rounded-full border border-km-border px-2
+      text-[12px] leading-[18px] text-km-dim;
+  }
+
+  /* 定宽数字。轮询刷新时数值宽度不跳。 */
+  .km-s-num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 表格（两套新皮肤共用结构，形状各自覆盖）                             */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  .km-s-table-wrap {
+    @apply overflow-x-auto;
+  }
+
+  .km-s-table {
+    @apply w-full min-w-[980px] border-collapse text-[13px];
+    font-variant-numeric: tabular-nums;
+  }
+
+  .km-s-table th {
+    @apply px-2.5 py-2.5 text-left text-[12px] font-medium whitespace-nowrap text-km-dim;
+  }
+
+  .km-s-table td {
+    @apply px-2.5 py-2.5 align-middle leading-snug whitespace-nowrap;
+  }
+
+  .km-s-table tbody tr {
+    @apply cursor-pointer;
+  }
+}
+
+html[data-style='vercel'] .km-s-table-wrap {
+  border: 1px solid var(--color-km-border);
+  border-radius: 12px;
+  background: var(--color-km-panel);
+}
+
+html[data-style='vercel'] .km-s-table th {
+  border-bottom: 1px solid var(--color-km-border);
+}
+
+html[data-style='vercel'] .km-s-table td {
+  border-bottom: 1px solid var(--color-km-border);
+}
+
+html[data-style='vercel'] .km-s-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+html[data-style='vercel'] .km-s-table tbody tr:hover td {
+  background: var(--color-km-bg);
+}
+
+html[data-style='apple'] .km-s-table-wrap {
+  border-radius: 20px;
+  background: var(--color-km-panel);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 28px rgb(0 0 0 / 0.05);
+}
+
+html[data-style='apple'].dark .km-s-table-wrap {
+  box-shadow: none;
+}
+
+html[data-style='apple'] .km-s-table th {
+  @apply pt-4 pb-2 font-semibold;
+}
+
+html[data-style='apple'] .km-s-table td {
+  border-top: 1px solid var(--color-km-hair);
+}
+
+html[data-style='apple'] .km-s-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-km-panel2) 55%, transparent);
+}
+
+/* ------------------------------------------------------------------ */
+/* 卡片与面板形状                                                       */
+/* ------------------------------------------------------------------ */
+
+html[data-style='vercel'] .km-s-card {
+  border: 1px solid var(--color-km-border);
+  border-radius: 12px;
+  background: var(--color-km-panel);
+  transition: border-color 0.15s;
+}
+
+html[data-style='vercel'] .km-s-card:hover {
+  border-color: var(--color-km-border2);
+}
+
+html[data-style='apple'] .km-s-card {
+  border-radius: 20px;
+  background: var(--color-km-panel);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 28px rgb(0 0 0 / 0.05);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html[data-style='apple'].dark .km-s-card {
+  box-shadow: none;
+}
+
+html[data-style='apple'] a.km-s-card:hover {
+  transform: scale(1.012);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-style='apple'] a.km-s-card:hover {
+    transform: none;
+  }
+  .km-s-fill {
+    transition: none;
+  }
+}
+
+/*
+ * 出问题的卡片顶边一道色带。
+ *
+ * 用 ::before 而不是 border-top：border 会把卡片内容整体下推 1px，一排卡里
+ * 只有出问题的那张错位。
+ */
+@layer components {
+  .km-s-card-flag {
+    @apply relative;
+  }
+
+  .km-s-card-flag::before {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-[2px];
+    border-radius: inherit;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .km-s-card-flag-bad::before {
+    background: var(--color-km-bad);
+  }
+
+  .km-s-card-flag-warn::before {
+    background: var(--color-km-warn);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 分组芯片                                                             */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  .km-s-chip {
+    @apply h-[30px] cursor-pointer px-3 text-[13px] text-km-dim transition-colors;
+  }
+
+  .km-s-chip:hover {
+    @apply text-km-text;
+  }
+}
+
+/*
+ * 选中态必须和下面的皮肤规则在同一层。
+ *
+ * 放进 `@layer components` 的话，无层的 `html[data-style=…] .km-s-chip`
+ * 会整层压过它（层叠层的优先级高于选择器优先级），选中的芯片就会拿回未选中
+ * 的底色，文字颜色却留在反白值 —— 结果是白底白字。
+ */
+html[data-style='vercel'] .km-s-chip {
+  border: 1px solid var(--color-km-border);
+  border-radius: 999px;
+  background: var(--color-km-panel);
+}
+
+/* 选中态反白：底色用正文色，文字用背景色，和经典皮肤的 km-seg-on 同理。 */
+html[data-style='vercel'] .km-s-chip[aria-pressed='true'] {
+  background: var(--color-km-text);
+  border-color: var(--color-km-text);
+  color: var(--color-km-bg);
+  font-weight: 500;
+}
+
+/*
+ * apple 的分组用 iOS 分段控件：整条一个灰槽，选中项是浮起的白片。
+ * 所以芯片本身不要边框和圆角，由父容器统一给。
+ */
+html[data-style='apple'] .km-index-groups {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--color-km-panel2);
+}
+
+html[data-style='apple'] .km-s-chip {
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-weight: 500;
+}
+
+html[data-style='apple'] .km-s-chip[aria-pressed='true'] {
+  background: var(--color-km-panel);
+  color: var(--color-km-text);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04);
+}
+
+html[data-style='apple'].dark .km-s-chip[aria-pressed='true'] {
+  background: var(--color-km-raised);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* 「需要注意」板块                                                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * apple 下这一块不用卡片的缩放悬停：它是个列表，整块跟着鼠标缩放会让人
+ * 以为整块可点，而实际可点的是每一行。
+ */
+html[data-style='apple'] .km-index-attention:hover {
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* 详情页的一句话状态                                                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 出问题时整条换底色。用 color-mix 从语义色调出淡底，而不是额外定义一组
+ * 浅色变量 —— 底色永远跟着语义色走，换皮不会漏改。
+ */
+.km-s-verdict-alert[data-level='bad'],
+.km-s-verdict-alert[data-level='offline'] {
+  background: color-mix(in srgb, var(--color-km-bad) 10%, var(--color-km-panel));
+  border-color: color-mix(in srgb, var(--color-km-bad) 35%, var(--color-km-border));
+}
+
+.km-s-verdict-alert[data-level='warn'] {
+  background: color-mix(in srgb, var(--color-km-warn) 12%, var(--color-km-panel));
+  border-color: color-mix(in srgb, var(--color-km-warn) 35%, var(--color-km-border));
+}
+
+/* apple 的卡片没有边框，靠左侧一道竖条表达档位。 */
+html[data-style='apple'] .km-instance-verdict {
+  border-left: 4px solid transparent;
+}
+
+html[data-style='apple'] .km-s-verdict-alert[data-level='bad'],
+html[data-style='apple'] .km-s-verdict-alert[data-level='offline'] {
+  border-left-color: var(--color-km-bad);
+}
+
+html[data-style='apple'] .km-s-verdict-alert[data-level='warn'] {
+  border-left-color: var(--color-km-warn);
+}
+
+/* 详情页的卡片不要缩放悬停：它们不是可点的入口。 */
+html[data-style='apple'] .km-page-instance .km-s-card:hover {
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* apple：iOS 分组列表                                                  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 灰底圆角列表。浅色下用页面底色（比白卡片略灰），深色下用 panel2 ——
+ * 深色的页面底色是纯黑，衬在卡片里会显得像个洞。
+ */
+.km-a-list {
+  background: var(--color-km-bg);
+}
+
+html[data-style='apple'].dark .km-a-list {
+  background: var(--color-km-panel2);
+}
+
+/* ------------------------------------------------------------------ */
+/* 与经典皮肤共用的组件在新皮肤下的调整                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * `km-num` 在经典皮肤里是等宽字体 + 定宽数字。它同时是校验脚本的锚点，新皮肤
+ * 也要用；但新皮肤的数字走界面字体，只保留定宽数字。
+ */
+html[data-style='vercel'] .km-num,
+html[data-style='apple'] .km-num {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 页脚是三套皮肤共用的组件，宽度写的是经典皮肤的 1560px。新皮肤的正文更窄，
+ * 页脚要跟正文同宽同内边距，左右边缘才对得齐。数值与各皮肤 IndexView /
+ * DetailView 的 <main> 一致，改那边要同步改这里。
+ */
+html[data-style='vercel'] .km-footer {
+  max-width: 1400px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+html[data-style='apple'] .km-footer {
+  max-width: 1340px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+@media (width >= 64rem) {
+  html[data-style='vercel'] .km-footer {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  html[data-style='apple'] .km-footer {
+    padding-left: 1.75rem;
+    padding-right: 1.75rem;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 字体                                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Inter 可变字体，仅拉丁子集（48 KB），中文继续走系统字体。随主题打包、
+ * 由 Vite 加哈希，不向任何第三方 CDN 发请求。授权是 SIL OFL 1.1，分发时必须
+ * 附带授权文本，见 public/fonts/OFL-inter.txt。
+ *
+ * @font-face 是全局声明，但浏览器只在有元素真的用到这个字体时才下载 ——
+ * 经典皮肤不引用 Inter，所以不会多出这一次请求。
+ */
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+html[data-style='vercel'] body {
+  font-family:
+    'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+  /* Inter 的 cv11 是单层 a，tnum 是定宽数字 —— 监控页上数字是主角。 */
+  font-feature-settings: 'cv11', 'tnum';
+}
+
+/*
+ * apple 在苹果设备上用系统的 SF Pro，其他平台退到 Inter：SF 不能随主题分发，
+ * 而 Windows / Linux 的系统无衬线体和 SF 的观感差得最远。
+ */
+html[data-style='apple'] body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'PingFang SC', 'Segoe UI',
+    'Microsoft YaHei', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------------------------------ */
+/* 各皮肤独立的顶栏                                                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 两套新皮肤各有自己的顶栏组件（skins/vercel|apple/Header.tsx），经典皮肤仍用
+ * components/Navbar.tsx。三者刻意长得不一样 —— vercel 是面包屑式细栏，apple 是
+ * 毛玻璃 + iOS 返回键。右侧操作簇（语言 / 外观 / 后台）结构共用，样式在这里按
+ * 皮肤分别定。
+ */
+
+@layer components {
+  .km-s-iconbtn {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    color: var(--color-km-dim);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      border-color 0.15s;
+  }
+  .km-s-iconbtn:hover {
+    color: var(--color-km-text);
+  }
+
+  .km-s-menu {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    z-index: 40;
+    min-width: 9rem;
+    padding: 6px;
+    border: 1px solid var(--color-km-border2);
+    border-radius: 10px;
+    background: var(--color-km-tip);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  }
+  .km-s-menu-item {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--color-km-dim);
+    cursor: pointer;
+  }
+  .km-s-menu-item:hover {
+    background: var(--color-km-panel2);
+    color: var(--color-km-text);
+  }
+  .km-s-menu-item[aria-current='true'] {
+    color: var(--color-km-text);
+    font-weight: 600;
+  }
+
+  .km-s-seg {
+    display: inline-flex;
+    gap: 2px;
+  }
+  .km-s-seg button {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--color-km-dim);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .km-s-seg button:hover {
+    color: var(--color-km-text);
+  }
+}
+
+/* ---------- vercel 顶栏 ---------- */
+
+html[data-style='vercel'] .km-v-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--color-km-bg) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--color-km-border);
+}
+html[data-style='vercel'] .km-v-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--color-km-text);
+}
+html[data-style='vercel'] .km-v-sep {
+  color: var(--color-km-border2);
+  font-size: 20px;
+  font-weight: 300;
+  margin: 0 -2px;
+}
+html[data-style='vercel'] .km-s-iconbtn:hover {
+  border-color: var(--color-km-border2);
+  background: var(--color-km-panel);
+}
+html[data-style='vercel'] .km-s-seg {
+  padding: 3px;
+  border: 1px solid var(--color-km-border);
+  border-radius: 9px;
+  background: var(--color-km-panel);
+}
+html[data-style='vercel'] .km-s-seg button[aria-pressed='true'] {
+  background: var(--color-km-raised);
+  color: var(--color-km-text);
+  box-shadow: 0 0 0 1px var(--color-km-border);
+}
+
+/* ---------- apple 顶栏 ---------- */
+
+html[data-style='apple'] .km-a-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--color-km-bg) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--color-km-hair);
+}
+html[data-style='apple'] .km-a-brand {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-km-text);
+}
+html[data-style='apple'] .km-a-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--color-km-accent);
+  font-size: 17px;
+}
+html[data-style='apple'] .km-s-iconbtn {
+  border-radius: 50%;
+}
+html[data-style='apple'] .km-s-iconbtn:hover {
+  background: var(--color-km-panel2);
+  color: var(--color-km-text);
+}
+html[data-style='apple'] .km-s-seg {
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--color-km-panel2);
+}
+html[data-style='apple'] .km-s-seg button {
+  font-weight: 500;
+}
+html[data-style='apple'] .km-s-seg button[aria-pressed='true'] {
+  background: var(--color-km-panel);
+  color: var(--color-km-text);
+  box-shadow:
+    0 3px 8px rgb(0 0 0 / 0.12),
+    0 3px 1px rgb(0 0 0 / 0.04);
+}
+html[data-style='apple'].dark .km-s-seg button[aria-pressed='true'] {
+  background: var(--color-km-raised);
+  box-shadow: none;
+}

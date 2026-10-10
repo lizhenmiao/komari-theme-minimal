@@ -112,8 +112,18 @@ function stage(message) {
  * 额外的 mock 参数，让同一批断言也能对着降级后的服务端跑一遍。
  *   node scripts/render-check.mjs --no-rpc2
  *   node scripts/render-check.mjs --no-metrics
+ *
+ * 不传 --style 时，三套皮肤各渲染一遍：与皮肤无关的断言（数据、哨兵值、
+ * i18n、路由）每套都跑，皮肤独有的 DOM 断言只在对应皮肤上跑。传了
+ * --style=<名字> 就只跑那一套，调试时快一些。
  */
 const MOCK_FLAGS = process.argv.slice(2).filter((arg) => arg.startsWith('--'))
+
+const ALL_SKINS = ['classic', 'vercel', 'apple']
+const STYLE_FLAG = MOCK_FLAGS.find((flag) => flag.startsWith('--style='))
+const SKINS = STYLE_FLAG ? [STYLE_FLAG.slice('--style='.length)] : ALL_SKINS
+/** --style 由这里逐轮指定，命令行上那个不要重复传给 mock。 */
+const BASE_FLAGS = MOCK_FLAGS.filter((flag) => !flag.startsWith('--style='))
 
 async function main() {
   if (MOCK_FLAGS.length > 0) stage(`mock flags: ${MOCK_FLAGS.join(' ')}`)
@@ -121,51 +131,16 @@ async function main() {
   stage('writing SSR entry')
   await writeFile(ENTRY, ENTRY_SOURCE, 'utf8')
 
-  stage('starting mock server')
-  const mock = await startMock(MOCK_FLAGS)
-
   try {
-    stage(`mock on port ${mock.port}, waiting for api`)
-    await waitForApi(mock.base)
-    stage('installing browser stubs')
-    installBrowserStubs(mock.port)
-
-    // 用一次性的 SSR **构建**，不用 dev server：`createServer` 即使关掉 HMR
-    // 也会开 socket，和已经在监听的东西冲突。
-    //
-    // `configFile: false` 是刻意的。项目配置里带着 Tailwind 插件和 dev proxy，
-    // 两者都不该进 SSR 包，加载它会让这次构建卡死。这里只需要 React 转换，把
-    // TSX 变成 Node 能执行的东西。
-    stage('building SSR bundle')
-    const { build } = await import('vite')
-    const react = (await import('@vitejs/plugin-react')).default
-    await build({
-      root: ROOT,
-      logLevel: 'error',
-      configFile: false,
-      plugins: [react()],
-      resolve: { alias: { '@': join(ROOT, 'src') } },
-      build: {
-        ssr: ENTRY,
-        outDir: OUT_DIR,
-        emptyOutDir: true,
-        rollupOptions: { output: { entryFileNames: 'entry.mjs' } },
-      },
-    })
-
-    stage('ssr bundle built, importing')
-    const mod = await import(pathToFileURL(join(OUT_DIR, 'entry.mjs')).href)
-    stage('rendering')
-    const { home, detail, snapshots } = await mod.render()
-    stage('asserting')
-    // 期望节点数从假服务端取，不写死 —— 加节点时不必回来改断言
-    const fixtures = (await (await fetch(`${mock.base}/api/nodes`)).json()).data
-    const expectedCards = fixtures.filter((node) => !node.hidden).length
-    assertSnapshots(snapshots)
-    assertHome(home, expectedCards)
-    assertDetail(detail)
+    /*
+     * SSR 包只构建一次，三套皮肤复用。皮肤由运行时的 theme_settings 决定，
+     * 不参与打包，没必要为每套皮肤重跑一次 vite build。
+     */
+    let entryUrl = null
+    for (const skin of SKINS) {
+      entryUrl = await runSkin(skin, entryUrl)
+    }
   } finally {
-    mock.stop()
     await rm(ENTRY, { force: true })
     await rm(OUT_DIR, { force: true, recursive: true })
   }
@@ -175,6 +150,72 @@ async function main() {
     console.log(`${failures} FAILED`)
     process.exit(1)
   }
+}
+
+/**
+ * 跑一套皮肤。
+ *
+ * `entryUrl` 为 null 时顺带构建 SSR 包，返回它供后续皮肤复用。每套皮肤各起
+ * 一个假服务端：皮肤是通过 `theme_settings` 下发的，而 mock 的设置在启动时
+ * 就定死了，换皮只能换一个实例。
+ */
+async function runSkin(skin, entryUrl) {
+  stage(`===== skin: ${skin} =====`)
+  const mock = await startMock([...BASE_FLAGS, `--style=${skin}`])
+
+  try {
+    stage(`mock on port ${mock.port}, waiting for api`)
+    await waitForApi(mock.base)
+    stage('installing browser stubs')
+    installBrowserStubs(mock.port)
+
+    if (entryUrl === null) {
+      stage('building SSR bundle')
+      await buildSsrBundle()
+      entryUrl = pathToFileURL(join(OUT_DIR, 'entry.mjs')).href
+    }
+
+    stage('importing ssr bundle')
+    const mod = await import(entryUrl)
+    stage('rendering')
+    const { home, detail, snapshots } = await mod.render()
+    stage('asserting')
+    // 期望节点数从假服务端取，不写死 —— 加节点时不必回来改断言
+    const fixtures = (await (await fetch(`${mock.base}/api/nodes`)).json()).data
+    const expectedCards = fixtures.filter((node) => !node.hidden).length
+    assertSnapshots(snapshots)
+    assertHome(home, expectedCards, skin)
+    assertDetail(detail, skin)
+    return entryUrl
+  } finally {
+    mock.stop()
+  }
+}
+
+/*
+ * 用一次性的 SSR **构建**，不用 dev server：`createServer` 即使关掉 HMR
+ * 也会开 socket，和已经在监听的东西冲突。
+ *
+ * `configFile: false` 是刻意的。项目配置里带着 Tailwind 插件和 dev proxy，
+ * 两者都不该进 SSR 包，加载它会让这次构建卡死。这里只需要 React 转换，把
+ * TSX 变成 Node 能执行的东西。
+ */
+async function buildSsrBundle() {
+  const { build } = await import('vite')
+  const react = (await import('@vitejs/plugin-react')).default
+  await build({
+    root: ROOT,
+    logLevel: 'error',
+    configFile: false,
+    plugins: [react()],
+    resolve: { alias: { '@': join(ROOT, 'src') } },
+    build: {
+      ssr: ENTRY,
+      outDir: OUT_DIR,
+      emptyOutDir: true,
+      rollupOptions: { output: { entryFileNames: 'entry.mjs' } },
+    },
+  })
 }
 /**
  * 主题在渲染和 effect 里会读 localStorage、matchMedia、WebSocket 和 document。
@@ -269,8 +310,8 @@ function assertSnapshots(snapshots) {
   check('useGroups 的读取函数引用稳定', snapshots.buildGroups)
 }
 
-function assertHome(html, expectedCards) {
-  console.log('\n首页')
+function assertHome(html, expectedCards, skin) {
+  console.log(`\n首页 [${skin}]`)
   check('渲染出非空内容', html.length > 500, `${html.length} 字符`)
   check('有布局的钩子类名', html.includes('km-main'))
   check('有导航栏的钩子类名', html.includes('km-navbar'))
@@ -287,9 +328,35 @@ function assertHome(html, expectedCards) {
 
   check('保留版权行', html.includes('Powered by Komari Monitor.'))
   check('渲染出运营者的页脚 HTML', html.includes('mock footer'))
-  check('渲染出进度条', html.includes('km-ui-usage-bar'))
-  check('渲染出状态点', html.includes('km-ui-status-dot'))
-  check('在线节点带呼吸动画类名', html.includes('km-dot-live'))
+  /*
+   * 皮肤独有的 DOM 分开断言。
+   *
+   * 经典皮肤每张卡片四条分段仪表条 + 呼吸状态点；vercel 用细条；apple 用同心
+   * 环。合成一条「三者之一」的断言等于把原有覆盖放宽到形同虚设 —— 经典皮肤
+   * 丢了状态点也照样能过。
+   */
+  if (skin === 'classic') {
+    check('渲染出进度条', html.includes('km-ui-usage-bar'))
+    check('渲染出状态点', html.includes('km-ui-status-dot'))
+    check('在线节点带呼吸动画类名', html.includes('km-dot-live'))
+  } else {
+    check('渲染出档位徽章', html.includes('km-s-badge'), '没有 km-s-badge')
+    if (skin === 'apple') {
+      const rings = (html.match(/km-ui-rings/g) ?? []).length
+      check('每张卡片一组同心环', rings === expectedCards, `${rings} 组，应为 ${expectedCards}`)
+    } else {
+      check('渲染出细条', html.includes('km-s-track'), '没有 km-s-track')
+    }
+    /*
+     * 「需要注意」板块。假服务端有 1 台离线、1 台已过期，所以这一块必然非空；
+     * 传 --no-attention 时整块不该出现。
+     */
+    const wantAttention = !BASE_FLAGS.includes('--no-attention')
+    check(
+      wantAttention ? '渲染出「需要注意」板块' : '关掉后不渲染「需要注意」板块',
+      html.includes('km-index-attention') === wantAttention,
+    )
+  }
 
   // 必须是真实数据，不是占位符。
   check('接口里的节点名出现了', html.includes('Alpha'), '没有 Alpha')
@@ -332,8 +399,8 @@ function assertNoPlaceholders(html) {
   )
 }
 
-function assertDetail(html) {
-  console.log('\n详情页')
+function assertDetail(html, skin) {
+  console.log(`\n详情页 [${skin}]`)
   check('渲染出非空内容', html.length > 500, `${html.length} 字符`)
   check('有详情页的钩子类名', html.includes('km-page-instance'))
   check('渲染出当前值区块', html.includes('km-instance-current'))

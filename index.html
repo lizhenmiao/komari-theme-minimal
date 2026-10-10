@@ -33,19 +33,39 @@
     <meta name="description" content="A simple server monitor tool." />
 
     <script>
-      // Apply the stored appearance before first paint so dark-mode loads do
-      // not flash white. The `appearance` key is shared with the default theme.
+      // Apply the stored appearance and interface style before first paint so
+      // dark-mode loads do not flash white and the style does not swap after
+      // the first frame.
+      //
+      // The `appearance` key is shared with the default theme and belongs to
+      // the visitor. The two `km-minimal-*` keys are a cache of the operator's
+      // configured settings, which only arrive with GET /api/public: they are
+      // written by src/hooks/useSkin.ts and read here. Keep the key names in
+      // sync with that file. On a first visit the cache is empty and the
+      // manifest default (apple) is used until the settings land.
       ;(function () {
+        var style = 'apple'
+        var fallback = 'system'
         try {
-          var pref = localStorage.getItem('appearance') || 'system'
+          var cachedStyle = localStorage.getItem('km-minimal-style')
+          if (cachedStyle === 'classic' || cachedStyle === 'vercel' || cachedStyle === 'apple') {
+            style = cachedStyle
+          }
+          var cachedDefault = localStorage.getItem('km-minimal-default-appearance')
+          if (cachedDefault === 'light' || cachedDefault === 'dark' || cachedDefault === 'system') {
+            fallback = cachedDefault
+          }
+          var pref = localStorage.getItem('appearance')
+          if (pref !== 'light' && pref !== 'dark' && pref !== 'system') pref = fallback
           var dark =
             pref === 'dark' ||
             (pref === 'system' &&
               window.matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.classList.toggle('dark', dark)
         } catch (e) {
-          /* private mode or storage disabled: fall through to light */
+          /* private mode or storage disabled: fall through to light + apple */
         }
+        document.documentElement.setAttribute('data-style', style)
       })()
     </script>
     <!--

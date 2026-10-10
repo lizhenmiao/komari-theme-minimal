@@ -1,7 +1,7 @@
 {
   "name": "Minimal",
   "short": "minimal",
-  "description": "单色极简主题，柔和卡片布局，支持网格与表格双视图 / A monochrome minimal theme with soft cards and grid/table views.",
+  "description": "三种界面风格（Apple / Vercel / 经典）由管理员在后台切换，支持网格与表格双视图 / Three interface styles (Apple, Vercel, Classic) chosen by the admin, with grid and table views.",
   "version": "1.0.0",
   "author": "lizhenmiao",
   "url": "https://github.com/lizhenmiao/komari-theme-minimal",
@@ -18,6 +18,30 @@
       {
         "type": "title",
         "name": { "zh-CN": "外观", "zh-TW": "外觀", "en": "Appearance" }
+      },
+      {
+        "key": "style",
+        "type": "select",
+        "name": { "zh-CN": "界面风格", "zh-TW": "介面風格", "en": "Interface style" },
+        "options": "apple,vercel,classic",
+        "default": "apple",
+        "help": {
+          "zh-CN": "apple：浅色大圆角卡片、环形仪表。vercel：深色为主、极简细线、趋势曲线。classic：1.0 版的单色卡片与分段仪表条。访客看到的是这里选的风格，不能自行切换。",
+          "zh-TW": "apple：淺色大圓角卡片、環形儀表。vercel：深色為主、極簡細線、趨勢曲線。classic：1.0 版的單色卡片與分段儀表條。訪客看到的是這裡選的風格，不能自行切換。",
+          "en": "apple: light rounded cards with activity rings. vercel: monochrome, hairline borders, trend lines. classic: the 1.0 cards with segmented bars. Visitors see what you pick here and cannot switch it themselves."
+        }
+      },
+      {
+        "key": "defaultAppearance",
+        "type": "select",
+        "name": { "zh-CN": "默认明暗", "zh-TW": "預設明暗", "en": "Default appearance" },
+        "options": "system,light,dark",
+        "default": "system",
+        "help": {
+          "zh-CN": "访客首次访问时的明暗。system 跟随访客的系统设置。访客自己切换过之后以其本地选择为准。",
+          "zh-TW": "訪客首次造訪時的明暗。system 跟隨訪客的系統設定。訪客自己切換過之後以其本機選擇為準。",
+          "en": "Light or dark on a visitor's first visit. system follows their OS setting. A visitor's own choice takes precedence afterwards."
+        }
       },
       {
         "key": "defaultView",
@@ -45,6 +69,21 @@
       {
         "type": "title",
         "name": { "zh-CN": "卡片指标", "zh-TW": "卡片指標", "en": "Card metrics" }
+      },
+      {
+        "key": "showAttention",
+        "type": "switch",
+        "name": {
+          "zh-CN": "显示「需要注意」板块",
+          "zh-TW": "顯示「需要注意」板塊",
+          "en": "Show the attention panel"
+        },
+        "default": true,
+        "help": {
+          "zh-CN": "首页顶部列出离线、占用过高、配额用尽、临近到期的节点。仅 apple 与 vercel 风格有这个板块；关闭后卡片上的提示与顶栏计数照常显示。",
+          "zh-TW": "首頁頂部列出離線、占用過高、配額用盡、臨近到期的節點。僅 apple 與 vercel 風格有這個板塊；關閉後卡片上的提示與頂欄計數照常顯示。",
+          "en": "Lists nodes that are offline, running hot, out of quota, or expiring soon at the top of the home page. Only the apple and vercel styles have this panel; card badges and the navbar count stay either way."
+        }
       },
       {
         "key": "showDisk",

@@ -7,8 +7,14 @@
 
 export type MetricTone = 'cpu' | 'mem' | 'disk' | 'swap' | 'quota'
 
-const WARN_AT = 75
-const BAD_AT = 90
+/**
+ * 示警阈值，全主题唯一来源。
+ *
+ * 三套皮肤和 `lib/attention.ts` 都从这里取：阈值各写一份必然漂移，到时候
+ * 同一个百分比在卡片上是橙色、在「需要注意」里却没被点名。
+ */
+export const WARN_AT = 75
+export const BAD_AT = 90
 
 /**
  * 条形颜色只跟指标走，不受阈值影响。

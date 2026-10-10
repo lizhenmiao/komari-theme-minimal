@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 
 /*
+ * 两套新皮肤（vercel / apple）的令牌覆盖与共用组件类。
+ *
+ * 必须放在所有规则之前 —— CSS 的 @import 只允许出现在样式表开头。覆盖能压住
+ * 下面 @theme 生成的 `:root` 默认值靠的是选择器优先级（`html[data-style]` 的
+ * 0,1,1 高于 `:root` 的 0,1,0），不是源码顺序，所以位置在前不影响生效。
+ */
+@import './skins/skins.css';
+
+/*
  * Tailwind v4 会自动从项目根目录扫描源文件，那样 design/ 里的独立 HTML 设计稿
  * 也会被扫进最终样式表。设计稿只是视觉参照，不属于产物。
  */
@@ -12,6 +21,7 @@
  * 默认主题共用），之后由 useAppearance 负责同步。
  */
 @custom-variant dark (&:where(.dark, .dark *));
+
 
 /*
  * 配色令牌。这里定义的每个 --color-* 都会被 Tailwind 生成对应工具类
@@ -29,6 +39,13 @@
   /* 面板内部的分组分隔线。比外框略深一点，分组边界才看得出来。 */
   --color-km-hair: #dddddd;
   --color-km-text: #1d2632;
+  /*
+   * 以下三个是为新皮肤引入的，经典皮肤也给值，组件才能无条件使用。
+   * raised 在经典皮肤下等于 panel2，good 等于 ok，accent 取 cpu 的青。
+   */
+  --color-km-raised: #f4f6f9;
+  --color-km-good: #059669;
+  --color-km-accent: #0e7490;
   --color-km-dim: #5d6a78;
   --color-km-faint: #8b96a3;
   --color-km-track: #e8ebf0;
@@ -48,6 +65,22 @@
   --font-km-mono: ui-monospace, 'Cascadia Mono', Consolas, 'JetBrains Mono', Menlo, monospace;
 }
 
+/*
+ * 多线图的区分色（延迟图每条线路一条）。
+ *
+ * 经典皮肤取值刻意等于 cpu / mem / swap，和 1.0 的配色逐位一致；两套新皮肤
+ * 把指标色收成了灰阶，没有这一组的话三条线路会挤成同一个黑。
+ *
+ * 不能放进 @theme：Tailwind v4 只输出被工具类用到的主题变量，这三个只由
+ * lib/tokens.ts 在 JS 里读取，放在 @theme 里会被整个裁掉，浅色经典皮肤下
+ * 读出空串，延迟图的第一条线就画不出来。
+ */
+:root {
+  --color-km-series1: #0891b2;
+  --color-km-series2: #c026d3;
+  --color-km-series3: #65a30d;
+}
+
 .dark {
   --color-km-bg: #0b0d10;
   --color-km-panel: #12151a;
@@ -56,6 +89,12 @@
   --color-km-border2: #31363f;
   --color-km-hair: #1a1e24;
   --color-km-text: #dce4ee;
+  --color-km-raised: #171b21;
+  --color-km-good: #34d399;
+  --color-km-accent: #22d3ee;
+  --color-km-series1: #22d3ee;
+  --color-km-series2: #e879f9;
+  --color-km-series3: #a3e635;
   --color-km-dim: #93a1b1;
   --color-km-faint: #5c6a79;
   --color-km-track: #1b1f26;

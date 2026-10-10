@@ -12,6 +12,7 @@ import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { findBrowser, launch } from './lib/cdp.mjs'
+import { checkSkin } from './lib/skin-browser-checks.mjs'
 import { ROOT, startMock, waitForApi } from './lib/spawn-mock.mjs'
 
 const CDP_PORT = 9412
@@ -73,7 +74,13 @@ async function main() {
   }
   console.log(`浏览器 ${browserPath}`)
 
-  const mock = await startMock()
+  /*
+   * 下面这一整套断言是照经典皮肤写的（LED 进度条、呼吸状态点、列开关、延迟
+   * 药丸），所以显式钉在 classic 上跑，覆盖一条不减。两套新皮肤的断言在
+   * lib/skin-browser-checks.mjs，放在最后跑。
+   */
+  console.log('\n经典皮肤 [classic]')
+  const mock = await startMock(['--style=classic'])
   let session = null
   try {
     await waitForApi(mock.base)
@@ -597,7 +604,7 @@ async function main() {
    * 写反（或干脆不判断、无条件显示）同样能通过。
    */
   console.log('\n未登录形态（--guest）')
-  const guestMock = await startMock(['--guest'])
+  const guestMock = await startMock(['--guest', '--style=classic'])
   let guestSession = null
   try {
     await waitForApi(guestMock.base)
@@ -612,6 +619,11 @@ async function main() {
   } finally {
     if (guestSession) await guestSession.close()
     guestMock.stop()
+  }
+
+  // 新皮肤：每套一个端口，避开上面两个会话用过的。
+  for (const [index, skin] of ['vercel', 'apple'].entries()) {
+    await checkSkin({ browserPath, skin, port: CDP_PORT + 2 + index, check })
   }
 
   console.log(`\n${checks - failures}/${checks} 项通过`)

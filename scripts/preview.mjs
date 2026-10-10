@@ -1,7 +1,10 @@
 /**
  * 生成 preview.png（主题市场列表需要）。
  *
- *   node scripts/preview.mjs [--detail]
+ *   node scripts/preview.mjs [--detail] [--style=apple|vercel|classic] [--out=路径]
+ *
+ * 不传 --style 时用 manifest 的默认风格（与真实服务端补默认值的行为一致）；
+ * 不传 --out 时写到仓库根的 preview.png —— 主题市场列表读的就是它。
  *
  * 启动假服务端，用系统里已装的 Chrome / Edge 无头模式截图。不引入
  * Playwright / Puppeteer 这类几百 MB 的依赖。
@@ -17,7 +20,11 @@ import { join } from 'node:path'
 import { findBrowser, launch } from './lib/cdp.mjs'
 import { ROOT, startMock, waitForApi } from './lib/spawn-mock.mjs'
 
-const OUT = join(ROOT, 'preview.png')
+const argValue = (name) =>
+  process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3)
+
+const OUT = join(ROOT, argValue('out') ?? 'preview.png')
+const STYLE = argValue('style')
 const CDP_PORT = 9413
 
 const detail = process.argv.includes('--detail')
@@ -34,7 +41,7 @@ async function main() {
   if (!browserPath) throw new Error('没找到 Chrome 或 Edge，无法截图')
   console.log(`  浏览器 ${browserPath}`)
 
-  const mock = await startMock()
+  const mock = await startMock(STYLE ? [`--style=${STYLE}`] : [])
   let session = null
   try {
     await waitForApi(mock.base)
@@ -54,22 +61,22 @@ async function main() {
     const info = await stat(OUT)
     const { analysePng, sampleRegion } = await import('./lib/png.mjs')
     const png = analysePng(await readFile(OUT))
-    console.log(`  preview.png ${png.width}x${png.height}, ${(info.size / 1024).toFixed(1)} kB`)
+    console.log(`  ${OUT} ${png.width}x${png.height}, ${(info.size / 1024).toFixed(1)} kB`)
     console.log(`  全图 颜色数 ${png.colors}，平均亮度 ${png.brightness}，最大单色占比 ${png.dominant}%`)
 
     /*
      * 按区域检查，而不是只看全图聚合值。浅色主题白底占大半，"只有导航栏、
      * 下面全空"和"内容齐全"的全图平均亮度几乎一模一样，聚合指标没有分辨能力。
      *
-     * 坐标对着 1600x900 视口下的实测几何取：顶栏 55px、汇总条 y=73 高 76、
-     * 卡片网格从 y=163 起、单卡 371x427、行距 438。取值时避开区块边界，
-     * 免得把相邻的空白也框进来。
+     * 三套皮肤的版式不同（经典的汇总条在 y=73，apple 那里还是大标题），所以
+     * 不按具体区块取坐标，而是把顶栏以下切成三条横带：任何一条是纯色块，都说明
+     * 那一段没渲染出来。左右各留 40px，避开页面两侧的留白。
      */
     const regions = [
       { name: '顶栏', x: 0, y: 0, w: 1600, h: 55 },
-      { name: '汇总条', x: 40, y: 73, w: 1520, h: 76 },
-      { name: '第一张卡', x: 40, y: 163, w: 371, h: 427 },
-      { name: '第二行卡片', x: 40, y: 601, w: 371, h: 299 },
+      { name: '上部', x: 40, y: 60, w: 1520, h: 240 },
+      { name: '中部', x: 40, y: 300, w: 1520, h: 300 },
+      { name: '下部', x: 40, y: 600, w: 1520, h: 300 },
     ]
 
     let empty = 0
