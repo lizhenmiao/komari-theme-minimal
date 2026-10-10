@@ -2,7 +2,7 @@
   "name": "Minimal",
   "short": "minimal",
   "description": "三种界面风格（Apple / Vercel / 经典）由管理员在后台切换，支持网格与表格双视图 / Three interface styles (Apple, Vercel, Classic) chosen by the admin, with grid and table views.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "lizhenmiao",
   "url": "https://github.com/lizhenmiao/komari-theme-minimal",
   "preview": "preview.png",
