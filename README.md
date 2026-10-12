@@ -198,8 +198,22 @@ src/
 scripts/              各层校验、假服务端、打包、图标抓取
 ```
 
+## 社区支持
+
+学 AI , 上 L 站：[LinuxDO](https://linux.do)
+
 ## 许可
 
 [MIT](./LICENSE)
 
 随包分发的 [Inter](https://github.com/rsms/inter) 字体使用 SIL Open Font License 1.1，授权文本见 [`public/fonts/OFL-inter.txt`](./public/fonts/OFL-inter.txt)。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=lizhenmiao%2Fkomari-theme-minimal&type=timeline&logscale=&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lizhenmiao/komari-theme-minimal&type=timeline&theme=dark&logscale&legend=bottom-right" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lizhenmiao/komari-theme-minimal&type=timeline&logscale&legend=bottom-right" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lizhenmiao/komari-theme-minimal&type=timeline&logscale&legend=bottom-right" />
+ </picture>
+</a>
